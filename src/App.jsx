@@ -1046,22 +1046,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-
-        <div style={{ flex: '1 1 auto', minHeight: '12px' }} />
-
-        <div className="garage-card">
-          <div className="garage-head">
-            <span>
-              <Wrench size={17} />
-            </span>
-            <b>AutoCare Garage</b>
-          </div>
-          <small>⌖ Lajpat Nagar, Delhi · 110024</small>
-          <small>☎ +91 98765 43210</small>
-          <label>
-            <i /> API Live
-          </label>
-        </div>
       </aside>
 
       <main className="main">
