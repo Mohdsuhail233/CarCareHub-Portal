@@ -409,6 +409,7 @@ export default function App() {
   const [restockQty, setRestockQty] = useState('');
   const [restockNotes, setRestockNotes] = useState('');
   const [restockLoading, setRestockLoading] = useState(false);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
 
   const toast = (m) => {
     setToastMsg(m);
@@ -974,11 +975,42 @@ export default function App() {
   };
 
   const handleSendWhatsAppInvoice = async (invoiceId) => {
+    setSendingWhatsApp(true);
     try {
-      await api.sendInvoiceWhatsApp(invoiceId);
-      toast('WhatsApp message triggered successfully!');
+      const res = await api.sendInvoiceWhatsApp(invoiceId);
+      const successMsg = (res && typeof res === 'object' && res.message)
+        ? res.message
+        : 'WhatsApp message triggered successfully!';
+      toast(successMsg);
     } catch (e) {
-      toast('WhatsApp API error: ' + e.message);
+      let raw = e?.message || 'Failed to send WhatsApp message';
+      let clean = 'Failed to deliver WhatsApp message. Please check customer phone number.';
+      try {
+        if (raw.includes('{') && raw.includes('}')) {
+          const start = raw.indexOf('{');
+          const end = raw.lastIndexOf('}');
+          const parsed = JSON.parse(raw.substring(start, end + 1));
+          raw = parsed.message || parsed.error?.message || (typeof parsed.error === 'string' ? parsed.error : '');
+        }
+      } catch (_) {}
+
+      if (raw) {
+        if (raw.includes('(#131030)')) {
+          clean = 'Customer phone number is not allowed on Meta test account.';
+        } else if (raw.includes('(#132001)')) {
+          clean = 'WhatsApp invoice template not approved or language mismatch.';
+        } else if (raw.includes('(#131026)')) {
+          clean = 'Message undeliverable to this phone number.';
+        } else {
+          clean = raw.replace(/^Error \d+:\s*/i, '')
+                     .replace(/^WhatsApp API error:\s*/i, '')
+                     .replace(/^WhatsApp invoice delivery failed:\s*/i, '')
+                     .trim();
+        }
+      }
+      toast(clean || 'WhatsApp alert could not be delivered.');
+    } finally {
+      setSendingWhatsApp(false);
     }
   };
 
@@ -2375,9 +2407,10 @@ export default function App() {
                 </a>
                 <button
                   className="primary"
+                  disabled={sendingWhatsApp}
                   onClick={() => handleSendWhatsAppInvoice(selected.raw.id)}
                 >
-                  <Send size={15} /> Send WhatsApp Alert
+                  <Send size={15} /> {sendingWhatsApp ? 'Sending WhatsApp...' : 'Send WhatsApp Alert'}
                 </button>
               </div>
             </div>

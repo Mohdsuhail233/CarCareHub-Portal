@@ -13,16 +13,33 @@ async function request(endpoint, options = {}) {
     const res = await fetch(url, { ...options, headers });
     if (!res.ok) {
       let errorMsg = `Error ${res.status}: ${res.statusText}`;
+      const contentType = res.headers.get('content-type') || '';
       try {
-        const errorJson = await res.json();
-        errorMsg = errorJson.message || errorJson.error || JSON.stringify(errorJson);
+        if (contentType.includes('application/json')) {
+          const errorJson = await res.json();
+          errorMsg = errorJson.message || 
+            (typeof errorJson.error === 'string' ? errorJson.error : errorJson.error?.message) || 
+            `Request failed (${res.status})`;
+        } else {
+          const text = await res.text();
+          if (text) errorMsg = text;
+        }
       } catch (e) {
-        // Not JSON
+        // Fallback to errorMsg
       }
       throw new Error(errorMsg);
     }
     if (res.status === 204) return null;
-    return await res.json();
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return await res.json();
+    }
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (_) {
+      return text;
+    }
   } catch (err) {
     console.error(`API Error [${endpoint}]:`, err);
     throw err;
