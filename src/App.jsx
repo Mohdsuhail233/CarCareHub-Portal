@@ -576,6 +576,26 @@ export default function App() {
     }
   };
 
+  // Filter invoices that are either partially paid or unpaid (with balance due > 0)
+  const payableInvoices = useMemo(() => {
+    return (rawData.Invoices || []).filter((inv) => {
+      const status = String(inv.status || '').toUpperCase();
+      const grandTotal = Number(inv.grandTotal || 0);
+      const paidAmount = Number(inv.paidAmount || 0);
+      const balance = inv.balanceDue !== undefined
+        ? Number(inv.balanceDue)
+        : Math.max(0, grandTotal - paidAmount);
+
+      // If status is fully PAID and balance is 0 or less, exclude it!
+      if (status === 'PAID' && balance <= 0.01) {
+        return false;
+      }
+
+      // If status is PARTIALLY_PAID, UNPAID, ISSUED, DRAFT, PENDING, or balance > 0 -> include!
+      return true;
+    });
+  }, [rawData.Invoices]);
+
   // Format table columns and rows dynamically from backend data
   const tableData = useMemo(() => {
     return {
@@ -750,13 +770,24 @@ export default function App() {
           paymentMethod: 'UPI',
         });
       }
-    } else if (p === 'Payments' && initialData) {
-      const balance = Math.max(0, Number(initialData.grandTotal || 0) - Number(initialData.paidAmount || 0));
-      setForm({
-        invoiceId: initialData.id,
-        amount: String(balance > 0 ? balance : initialData.grandTotal || ''),
-        paymentMethod: 'UPI',
-      });
+    } else if (p === 'Payments') {
+      const targetInv = initialData || payableInvoices[0];
+      if (targetInv) {
+        const grandTotal = Number(targetInv.grandTotal || 0);
+        const paidAmount = Number(targetInv.paidAmount || 0);
+        const balance = targetInv.balanceDue !== undefined
+          ? Number(targetInv.balanceDue)
+          : Math.max(0, grandTotal - paidAmount);
+        setForm({
+          invoiceId: targetInv.id,
+          amount: balance > 0 ? String(balance) : (grandTotal > 0 ? String(grandTotal) : ''),
+          paymentMethod: 'UPI',
+        });
+      } else {
+        setForm({
+          paymentMethod: 'UPI',
+        });
+      }
     }
 
     setModal({ type: 'add', page: p });
@@ -1019,8 +1050,8 @@ export default function App() {
           toast('Invoice generated successfully (Marked Unpaid / Due)!');
         }
       } else if (p === 'Payments') {
-        const invId = form.invoiceId || rawData.Invoices[0]?.id;
-        if (!invId) throw new Error('Please select an invoice first');
+        const invId = form.invoiceId || payableInvoices[0]?.id || rawData.Invoices[0]?.id;
+        if (!invId) throw new Error('Please select an unpaid or partially paid invoice first');
         await api.createPayment(invId, {
           invoiceId: invId,
           amount: parseFloat(form.amount || 0),
@@ -2081,51 +2112,151 @@ export default function App() {
 
             {modal.page === 'Payments' && (
               <>
-                <label style={{ gridColumn: 'span 2' }}>
-                  Select Invoice *
-                  <select
-                    value={form.invoiceId || rawData.Invoices[0]?.id || ''}
-                    onChange={(e) => setForm({ ...form, invoiceId: e.target.value })}
-                  >
-                    {rawData.Invoices.map((inv) => (
-                      <option key={inv.id} value={inv.id}>
-                        {inv.invoiceNumber} - {inv.customerName} (Total: ₹{inv.grandTotal})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Amount (₹) *
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="e.g. 3500.00"
-                    value={form.amount !== undefined ? form.amount : ''}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, amount: v });
+                {payableInvoices.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: 'span 2',
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
+                      color: '#065f46',
+                      padding: '16px 18px',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      margin: '10px 0',
                     }}
-                    required
-                  />
-                </label>
-                <label>
-                  Payment Method
-                  <select
-                    value={form.paymentMethod || 'UPI'}
-                    onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
                   >
-                    <option value="UPI">UPI</option>
-                    <option value="CASH">Cash</option>
-                  </select>
-                </label>
-                <label style={{ gridColumn: 'span 2' }}>
-                  Transaction / UTR Reference
-                  <input
-                    value={form.transactionReference || ''}
-                    onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
-                    placeholder="e.g. UPI-202611019901"
-                  />
-                </label>
+                    <CheckCircle2 size={22} style={{ color: '#059669', flexShrink: 0 }} />
+                    <div>
+                      <b style={{ fontSize: '14px' }}>All Invoices are Fully Settled!</b>
+                      <div style={{ fontSize: '12px', color: '#047857', marginTop: '2px' }}>
+                        Filhaal koi bhi unpaid ya partially paid invoice pending nahi hai. All customer payments are up-to-date.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <label style={{ gridColumn: 'span 2' }}>
+                      Select Unpaid / Partially Paid Invoice *
+                      <select
+                        value={form.invoiceId || payableInvoices[0]?.id || ''}
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          const inv = payableInvoices.find((i) => String(i.id) === String(selectedId));
+                          if (inv) {
+                            const grandTotal = Number(inv.grandTotal || 0);
+                            const paidAmount = Number(inv.paidAmount || 0);
+                            const balance = inv.balanceDue !== undefined
+                              ? Number(inv.balanceDue)
+                              : Math.max(0, grandTotal - paidAmount);
+                            setForm({
+                              ...form,
+                              invoiceId: inv.id,
+                              amount: balance > 0 ? String(balance) : (grandTotal > 0 ? String(grandTotal) : form.amount || ''),
+                            });
+                          } else {
+                            setForm({ ...form, invoiceId: selectedId });
+                          }
+                        }}
+                      >
+                        {payableInvoices.map((inv) => {
+                          const grandTotal = Number(inv.grandTotal || 0);
+                          const paidAmount = Number(inv.paidAmount || 0);
+                          const balance = inv.balanceDue !== undefined
+                            ? Number(inv.balanceDue)
+                            : Math.max(0, grandTotal - paidAmount);
+                          const statusDisplay = inv.status === 'PARTIALLY_PAID' ? 'Partially Paid' : (inv.status || 'Unpaid');
+                          return (
+                            <option key={inv.id} value={inv.id}>
+                              {inv.invoiceNumber} — {inv.customerName || 'Customer'} (Due: ₹{balance.toLocaleString()} | Total: ₹{grandTotal.toLocaleString()}) [{statusDisplay}]
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+
+                    {(() => {
+                      const currentInv = payableInvoices.find((i) => String(i.id) === String(form.invoiceId || payableInvoices[0]?.id));
+                      if (!currentInv) return null;
+                      const grandTotal = Number(currentInv.grandTotal || 0);
+                      const paidAmount = Number(currentInv.paidAmount || 0);
+                      const balance = currentInv.balanceDue !== undefined
+                        ? Number(currentInv.balanceDue)
+                        : Math.max(0, grandTotal - paidAmount);
+
+                      return (
+                        <div
+                          style={{
+                            gridColumn: 'span 2',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            padding: '10px 14px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '12px',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          <div>
+                            <span style={{ color: '#64748b' }}>Customer: </span>
+                            <b style={{ color: '#0f172a' }}>{currentInv.customerName || '—'}</b>
+                            {currentInv.registrationNumber && (
+                              <span style={{ color: '#64748b', marginLeft: '8px' }}>({currentInv.registrationNumber})</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                            <span style={{ color: '#64748b' }}>
+                              Total: <b>₹{grandTotal.toLocaleString()}</b>
+                            </span>
+                            <span style={{ color: '#059669' }}>
+                              Paid: <b>₹{paidAmount.toLocaleString()}</b>
+                            </span>
+                            <span style={{ color: '#d97706', fontWeight: 700 }}>
+                              Balance Due: ₹{balance.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <label>
+                      Amount to Pay (₹) *
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="e.g. 3500.00"
+                        value={form.amount !== undefined ? form.amount : ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, amount: v });
+                        }}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Payment Method
+                      <select
+                        value={form.paymentMethod || 'UPI'}
+                        onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                      >
+                        <option value="UPI">UPI (Google Pay / PhonePe / Paytm / QR)</option>
+                        <option value="CASH">Cash</option>
+                      </select>
+                    </label>
+                    <label style={{ gridColumn: 'span 2' }}>
+                      Transaction / UTR Reference
+                      <input
+                        value={form.transactionReference || ''}
+                        onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                        placeholder="e.g. UPI-202611019901 or Counter Receipt"
+                      />
+                    </label>
+                  </>
+                )}
               </>
             )}
 
@@ -2246,14 +2377,20 @@ export default function App() {
             <button className="outline" onClick={() => setModal(null)} disabled={loading}>
               Cancel
             </button>
-            <button className="primary" onClick={handleCreateRecord} disabled={loading}>
+            <button
+              className="primary"
+              onClick={handleCreateRecord}
+              disabled={loading || (modal.page === 'Payments' && payableInvoices.length === 0)}
+            >
               {loading
                 ? 'Saving to Database...'
                 : modal.page === 'Customers'
                   ? 'Save Customer & Vehicle'
                   : modal.page === 'Invoices'
                     ? ((form.paymentStatus || 'PAID') === 'PAID' ? 'Generate & Settle Payment' : 'Generate Invoice')
-                    : 'Save Record'}
+                    : modal.page === 'Payments'
+                      ? (payableInvoices.length === 0 ? 'No Invoices Due' : 'Record Payment')
+                      : 'Save Record'}
             </button>
           </div>
         </Modal>
