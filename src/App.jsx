@@ -77,7 +77,7 @@ function Badge({ children }) {
   return <span className={'badge ' + statusClass(children)}>{children}</span>;
 }
 
-function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment }) {
+function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment, onSendReminder, sendingReminderId }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
 
@@ -252,6 +252,33 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
                       return <td key={j}>{v}</td>;
                     })}
                     <td className="action-cell-td">
+                      {page === 'Service Reminders' && (
+                        <button
+                          className="outline"
+                          style={{
+                            padding: '4px 9px',
+                            fontSize: '11px',
+                            marginRight: '6px',
+                            borderColor: '#25D366',
+                            color: '#128C7E',
+                            background: '#f0fdf4',
+                            fontWeight: 600,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                          disabled={sendingReminderId === rawItem.id}
+                          onClick={() => onSendReminder && onSendReminder(rawItem.id)}
+                          title="Send WhatsApp Service Reminder"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                          </svg>
+                          {sendingReminderId === rawItem.id ? 'Sending...' : 'WhatsApp'}
+                        </button>
+                      )}
                       {page === 'Invoices' && rawItem.status !== 'PAID' && rawItem.status !== 'CANCELLED' && (
                         <button
                           className="outline"
@@ -410,6 +437,7 @@ export default function App() {
   const [restockNotes, setRestockNotes] = useState('');
   const [restockLoading, setRestockLoading] = useState(false);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const [sendingReminderId, setSendingReminderId] = useState(null);
 
   const toast = (m) => {
     setToastMsg(m);
@@ -1014,6 +1042,47 @@ export default function App() {
     }
   };
 
+  const handleSendWhatsAppReminder = async (reminderId) => {
+    setSendingReminderId(reminderId);
+    try {
+      const res = await api.sendServiceReminderWhatsApp(reminderId);
+      const successMsg = (res && typeof res === 'object' && res.message)
+        ? res.message
+        : 'Service reminder WhatsApp sent successfully!';
+      toast(successMsg);
+      fetchAllData();
+    } catch (e) {
+      let raw = e?.message || 'Failed to send WhatsApp reminder';
+      let clean = 'Failed to deliver WhatsApp reminder. Please check customer phone number.';
+      try {
+        if (raw.includes('{') && raw.includes('}')) {
+          const start = raw.indexOf('{');
+          const end = raw.lastIndexOf('}');
+          const parsed = JSON.parse(raw.substring(start, end + 1));
+          raw = parsed.message || parsed.error?.message || (typeof parsed.error === 'string' ? parsed.error : '');
+        }
+      } catch (_) {}
+
+      if (raw) {
+        if (raw.includes('(#131030)')) {
+          clean = 'Customer phone number is not allowed on Meta test account.';
+        } else if (raw.includes('(#132001)')) {
+          clean = 'WhatsApp reminder template not approved or language mismatch.';
+        } else if (raw.includes('(#131026)')) {
+          clean = 'Message undeliverable to this phone number.';
+        } else {
+          clean = raw.replace(/^Error \d+:\s*/i, '')
+                     .replace(/^WhatsApp API error:\s*/i, '')
+                     .replace(/^WhatsApp service reminder delivery failed:\s*/i, '')
+                     .trim();
+        }
+      }
+      toast(clean || 'WhatsApp reminder could not be delivered.');
+    } finally {
+      setSendingReminderId(null);
+    }
+  };
+
   // Live bill computation for Add Invoice Modal
   const labourTotal = useMemo(() => {
     return jobTasks.reduce((acc, t) => acc + Number(t.labourCharge || 0), 0);
@@ -1216,6 +1285,8 @@ export default function App() {
                   invoices={rawData.Invoices || []}
                   onAdd={(target) => openAdd(typeof target === 'string' ? target : page)}
                   onCollectPayment={(item) => openAdd('Payments', item)}
+                  onSendReminder={handleSendWhatsAppReminder}
+                  sendingReminderId={sendingReminderId}
                   onRefresh={fetchAllData}
                   onUpdateStatus={handleUpdateJobStatus}
                   onView={(row, idx) => {
@@ -2141,10 +2212,14 @@ export default function App() {
             {(tableData[modal.page]?.cols || []).map((col, i) => (
               <div key={col}>
                 <small>{col.toUpperCase()}</small>
-                {col === 'Status' ? (
+                {col === 'Status' || col === 'Movement' || col === 'Method' || col === 'Channel' || col === 'Fuel Type' ? (
                   <div>
                     <Badge>{selected.row[i] || '—'}</Badge>
                   </div>
+                ) : col === 'Reg. Number' || col === 'Vehicle' ? (
+                  <span className="vehicle-reg-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <Car size={13} /> {selected.row[i] || '—'}
+                  </span>
                 ) : (
                   <b>{selected.row[i] || '—'}</b>
                 )}
@@ -2572,6 +2647,266 @@ export default function App() {
             </div>
           )}
 
+          {/* SERVICE REMINDERS DETAILS: WHATSAPP ACTION CARD */}
+          {modal.page === 'Service Reminders' && selected.raw && (
+            <div style={{ marginTop: '16px' }}>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <b style={{ fontSize: '13px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Bell size={15} color="#2563eb" /> Send Service Reminder Alert
+                  </b>
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#64748b' }}>
+                    Send scheduled service reminder message to customer {selected.raw.customerName ? `(${selected.raw.customerName})` : ''} on WhatsApp.
+                  </p>
+                </div>
+                <button
+                  disabled={sendingReminderId === selected.raw.id}
+                  onClick={() => handleSendWhatsAppReminder(selected.raw.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '8px',
+                    padding: '9px 16px',
+                    fontSize: '12px',
+                    background: '#000000',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 600,
+                    cursor: sendingReminderId === selected.raw.id ? 'not-allowed' : 'pointer',
+                    opacity: sendingReminderId === selected.raw.id ? 0.7 : 1,
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                  </svg>
+                  {sendingReminderId === selected.raw.id ? 'Sending WhatsApp...' : 'Send WhatsApp Alert'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* CUSTOMERS DETAILS: REGISTERED VEHICLES TABLE */}
+          {modal.page === 'Customers' && selected.raw && (() => {
+            const customerVehicles = (rawData['Vehicles'] || []).filter(
+              (v) => v.customerId === selected.raw.id
+            );
+            return (
+              <div style={{ marginTop: '16px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 600, margin: '14px 0 8px', color: '#334155' }}>
+                  🚗 Registered Vehicles ({customerVehicles.length}):
+                </h4>
+                {customerVehicles.length === 0 ? (
+                  <p style={{ fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+                    No vehicles registered for this customer yet.
+                  </p>
+                ) : (
+                  <table className="items-table" style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Reg. Number</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Make & Model</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Fuel Type</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Odometer</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Year</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customerVehicles.map((v) => (
+                        <tr key={v.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 700, color: '#0f172a' }}>
+                            <span className="vehicle-reg-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                              <Car size={13} /> {v.registrationNumber}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 12px', color: '#334155' }}>{v.make || v.vehicleMake} {v.model}</td>
+                          <td style={{ padding: '10px 12px' }}><Badge>{v.fuelType || 'PETROL'}</Badge></td>
+                          <td style={{ padding: '10px 12px', color: '#334155' }}>{v.odometerReading ? `${Number(v.odometerReading).toLocaleString()} KM` : '—'}</td>
+                          <td style={{ padding: '10px 12px', color: '#334155' }}>{v.year || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* VEHICLES DETAILS: SERVICE JOBS HISTORY TABLE */}
+          {modal.page === 'Vehicles' && selected.raw && (() => {
+            const vehicleJobs = (rawData['Service Jobs'] || []).filter(
+              (j) => j.vehicleId === selected.raw.id || j.registrationNumber === selected.raw.registrationNumber
+            );
+            return (
+              <div style={{ marginTop: '16px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 600, margin: '14px 0 8px', color: '#334155' }}>
+                  🔧 Service Job History ({vehicleJobs.length}):
+                </h4>
+                {vehicleJobs.length === 0 ? (
+                  <p style={{ fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+                    No service jobs recorded for this vehicle yet.
+                  </p>
+                ) : (
+                  <table className="items-table" style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Job No.</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Complaint / Work</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Status</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Date</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Est. Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vehicleJobs.map((j) => (
+                        <tr key={j.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 700, color: '#0f172a' }}>{j.jobNumber}</td>
+                          <td style={{ padding: '10px 12px', color: '#334155' }}>{j.customerComplaint || 'General Service'}</td>
+                          <td style={{ padding: '10px 12px' }}><Badge>{j.status}</Badge></td>
+                          <td style={{ padding: '10px 12px', color: '#64748b' }}>{j.receivedDate || (j.createdAt ? j.createdAt.slice(0, 10) : '—')}</td>
+                          <td style={{ padding: '10px 12px', color: '#0f172a', fontWeight: 700 }}>₹{Number(j.estimatedCost || 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* PAYMENTS DETAILS: SUMMARY CARD */}
+          {modal.page === 'Payments' && selected.raw && (
+            <div style={{ marginTop: '16px' }}>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  display: 'grid',
+                  gap: '10px',
+                  fontSize: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#64748b', fontWeight: 600 }}>SETTLED AMOUNT</span>
+                  <span style={{ color: '#16a34a', fontSize: '20px', fontWeight: 800 }}>
+                    ₹{Number(selected.raw.amount || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#64748b' }}>Payment Mode:</span>
+                  <Badge>{selected.raw.paymentMethod || selected.raw.paymentMode || 'CASH'}</Badge>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Transaction Ref / Note:</span>
+                  <b style={{ color: '#0f172a' }}>{selected.raw.transactionRef || selected.raw.notes || '—'}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Invoice Number:</span>
+                  <b style={{ color: '#0f172a' }}>{selected.raw.invoiceNumber || '—'}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Payment Date:</span>
+                  <b style={{ color: '#0f172a' }}>{selected.raw.paymentDate ? selected.raw.paymentDate.slice(0, 10) : '—'}</b>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* EXPENSES DETAILS: SUMMARY CARD */}
+          {modal.page === 'Expenses' && selected.raw && (
+            <div style={{ marginTop: '16px' }}>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  display: 'grid',
+                  gap: '10px',
+                  fontSize: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#64748b', fontWeight: 600 }}>EXPENSE AMOUNT</span>
+                  <span style={{ color: '#dc2626', fontSize: '20px', fontWeight: 800 }}>
+                    ₹{Number(selected.raw.amount || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#64748b' }}>Payment Mode:</span>
+                  <Badge>{selected.raw.paymentMethod || 'CASH'}</Badge>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Category:</span>
+                  <b style={{ color: '#0f172a' }}>{selected.raw.category || 'General'}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Notes / Description:</span>
+                  <b style={{ color: '#0f172a' }}>{selected.raw.description || selected.raw.title || '—'}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Expense Date:</span>
+                  <b style={{ color: '#0f172a' }}>{selected.raw.expenseDate || '—'}</b>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* NOTIFICATIONS DETAILS: SUMMARY CARD */}
+          {modal.page === 'Notifications' && selected.raw && (
+            <div style={{ marginTop: '16px' }}>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  display: 'grid',
+                  gap: '10px',
+                  fontSize: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#64748b', fontWeight: 600 }}>DELIVERY STATUS</span>
+                  <Badge>{selected.raw.status || 'SENT'}</Badge>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#64748b' }}>Channel:</span>
+                  <Badge>{selected.raw.channel || 'WHATSAPP'}</Badge>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Recipient:</span>
+                  <b style={{ color: '#0f172a' }}>{selected.raw.recipient || '—'}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>External Message ID:</span>
+                  <code style={{ fontSize: '11px', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>
+                    {selected.raw.externalMessageId || '—'}
+                  </code>
+                </div>
+                <div style={{ marginTop: '4px' }}>
+                  <span style={{ color: '#64748b', display: 'block', marginBottom: '4px' }}>Message Preview:</span>
+                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px', color: '#334155', whiteSpace: 'pre-wrap', fontSize: '11px', lineHeight: 1.5 }}>
+                    {selected.raw.content || selected.raw.message || '—'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="modal-actions" style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #edf0f4', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <button
               className="outline"
