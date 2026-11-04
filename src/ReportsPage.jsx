@@ -37,14 +37,14 @@ export default function ReportsPage({ summary, rawData, onRefresh }) {
 
   const totalRevenue = liveRev > 0
     ? liveRev
-    : (rawData?.Payments || []).reduce((acc, p) => acc + (p.status === 'SUCCESS' ? Number(p.amount || 0) : 0), 0) || 3710;
+    : (rawData?.Payments || []).reduce((acc, p) => acc + (p.status === 'SUCCESS' ? Number(p.amount || 0) : 0), 0);
   const totalExpenses = liveExp > 0
     ? liveExp
-    : liveExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0) || 2500;
+    : liveExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0);
   const netProfit = totalRevenue - totalExpenses;
-  const pendingPayments = livePending > 0 ? livePending : 1700;
-  const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '32.6';
-  const totalInvoicesCount = liveInvoices > 0 ? liveInvoices : 4;
+  const pendingPayments = livePending > 0 ? livePending : 0;
+  const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+  const totalInvoicesCount = liveInvoices;
 
   // Build daily payments map from rawData.Payments
   const dailyPaymentsMap = useMemo(() => {

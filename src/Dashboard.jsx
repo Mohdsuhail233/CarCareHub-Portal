@@ -39,22 +39,22 @@ export default function Dashboard({ go, summary, rawData, loading, onRefresh, op
       .catch((err) => console.warn('Monthly revenue fetch:', err));
   }, []);
 
-  // 6 Primary KPI Stats (Exact as requested by user)
-  const custCount = rawData?.Customers?.length || summary?.totalCustomers || 4;
-  const vehCount = rawData?.Vehicles?.length || 4;
+  // 6 Primary KPI Stats (Dynamic from live DB)
+  const custCount = rawData?.Customers?.length || summary?.totalCustomers || 0;
+  const vehCount = rawData?.Vehicles?.length || 0;
   const allJobs = rawData?.['Service Jobs'] || [];
   const activeJobs = allJobs.filter((j) => j.status !== 'COMPLETED' && j.status !== 'CANCELLED').length;
-  const completedJobs = allJobs.filter((j) => j.status === 'COMPLETED').length || 7;
+  const completedJobs = allJobs.filter((j) => j.status === 'COMPLETED').length;
 
   const pendingPay = (rawData?.Invoices || []).reduce((acc, inv) => {
     const grand = Number(inv.grandTotal || 0);
     const paid = Number(inv.paidAmount || 0);
     return acc + Math.max(0, grand - paid);
-  }, 0) || Number(summary?.pendingPayments || 1700);
+  }, 0) || Number(summary?.pendingPayments || 0);
 
   const totalRev = Number(summary?.totalRevenue || 0) || (rawData?.Payments || []).reduce((acc, p) => {
     return acc + (p.status === 'SUCCESS' ? Number(p.amount || 0) : 0);
-  }, 0) || 3710;
+  }, 0);
 
   // The 6 Cards exact in the reference image design:
   // Card 1: Vibrant blue solid circle (Total Orders / Active Jobs)
@@ -238,45 +238,9 @@ export default function Dashboard({ go, summary, rawData, loading, onRefresh, op
 
   const activePoint = points[activePointIndex];
 
-  // ONLY 2-3 JOB CARDS (as specifically requested)
+  // ONLY 2-3 JOB CARDS
   const recentJobCards = useMemo(() => {
-    const list = allJobs.slice(0, 3);
-    if (list.length > 0) return list;
-    return [
-      {
-        id: 1,
-        jobNumber: 'JOB-2F217C80',
-        vehicleMake: 'Maruti Suzuki',
-        vehicleModel: 'Swift',
-        registrationNumber: 'DL8CAB1234',
-        customerComplaint: 'Engine check & Periodic Service',
-        customerName: 'Rahul Sharma',
-        status: 'COMPLETED',
-        createdAt: '2026-10-31T10:00:00'
-      },
-      {
-        id: 2,
-        jobNumber: 'JOB-68F7652A',
-        vehicleMake: 'Hyundai',
-        vehicleModel: 'i10',
-        registrationNumber: 'DL8CAB1234',
-        customerComplaint: 'Brake pads replacement & AC service',
-        customerName: 'Faiz khan',
-        status: 'IN_PROGRESS',
-        createdAt: '2026-11-01T09:30:00'
-      },
-      {
-        id: 3,
-        jobNumber: 'JOB-093C7D21',
-        vehicleMake: 'Maruti',
-        vehicleModel: 'WagonR',
-        registrationNumber: 'DL8CAB1234',
-        customerComplaint: 'Suspension diagnosis & Wheel Alignment',
-        customerName: 'Faiz khan',
-        status: 'COMPLETED',
-        createdAt: '2026-11-01T11:15:00'
-      }
-    ];
+    return allJobs.slice(0, 3);
   }, [allJobs]);
 
   return (
@@ -490,56 +454,62 @@ export default function Dashboard({ go, summary, rawData, loading, onRefresh, op
           </button>
         </div>
 
-        <div className="recent-jobs-3cards-grid">
-          {recentJobCards.map((job) => {
-            const isCompleted = job.status === 'COMPLETED';
-            return (
-              <div
-                key={job.id}
-                className="clean-job-card"
-                onClick={() => {
-                  if (typeof job.id === 'number' && onSelectJob) {
-                    onSelectJob(job);
-                  } else {
-                    go('Service Jobs');
-                  }
-                }}
-              >
-                <div className="clean-job-head">
-                  <div className="clean-job-vehicle">
-                    <span className="clean-job-icon">
-                      <Car size={16} />
+        {recentJobCards.length === 0 ? (
+          <div style={{ padding: '28px', textAlign: 'center', background: '#fff', borderRadius: '16px', border: '1px solid #f1f5f9', color: '#64748b', fontSize: '13px' }}>
+            No active jobs in the workshop yet. Click "+ Create Job" to create your first service job card.
+          </div>
+        ) : (
+          <div className="recent-jobs-3cards-grid">
+            {recentJobCards.map((job) => {
+              const isCompleted = job.status === 'COMPLETED';
+              return (
+                <div
+                  key={job.id}
+                  className="clean-job-card"
+                  onClick={() => {
+                    if (typeof job.id === 'number' && onSelectJob) {
+                      onSelectJob(job);
+                    } else {
+                      go('Service Jobs');
+                    }
+                  }}
+                >
+                  <div className="clean-job-head">
+                    <div className="clean-job-vehicle">
+                      <span className="clean-job-icon">
+                        <Car size={16} />
+                      </span>
+                      <div>
+                        <b>{job.vehicleMake} {job.vehicleModel}</b>
+                        <small className="clean-job-no">{job.jobNumber}</small>
+                      </div>
+                    </div>
+                    <span className={`clean-job-status ${isCompleted ? 'completed' : 'in-progress'}`}>
+                      {job.status}
                     </span>
-                    <div>
-                      <b>{job.vehicleMake} {job.vehicleModel}</b>
-                      <small className="clean-job-no">{job.jobNumber}</small>
+                  </div>
+
+                  <div className="clean-job-complaint">
+                    {job.customerComplaint || 'General Service & Maintenance'}
+                  </div>
+
+                  <div className="clean-job-footer">
+                    <div className="clean-job-reg">
+                      <span>Reg:</span> <b>{job.registrationNumber || '—'}</b>
+                    </div>
+                    <div className="clean-job-cust">
+                      <span>Client:</span> <b>{job.customerName || 'Customer'}</b>
+                    </div>
+                    <div className="clean-job-time">
+                      <Clock size={11} />
+                      <span>{getTimeAgo(job.createdAt || job.receivedAt)}</span>
                     </div>
                   </div>
-                  <span className={`clean-job-status ${isCompleted ? 'completed' : 'in-progress'}`}>
-                    {job.status}
-                  </span>
                 </div>
-
-                <div className="clean-job-complaint">
-                  {job.customerComplaint || 'General Service & Maintenance'}
-                </div>
-
-                <div className="clean-job-footer">
-                  <div className="clean-job-reg">
-                    <span>Reg:</span> <b>{job.registrationNumber || '—'}</b>
-                  </div>
-                  <div className="clean-job-cust">
-                    <span>Client:</span> <b>{job.customerName || 'Customer'}</b>
-                  </div>
-                  <div className="clean-job-time">
-                    <Clock size={11} />
-                    <span>{getTimeAgo(job.createdAt || job.receivedAt)}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
