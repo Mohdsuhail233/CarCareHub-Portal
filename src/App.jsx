@@ -677,7 +677,7 @@ export default function App() {
         setForm({
           serviceJobId: availableJob.id,
           taxRate: '18',
-          discount: '0',
+          discount: '',
           paymentStatus: 'PAID',
           paymentMethod: 'UPI',
         });
@@ -685,7 +685,7 @@ export default function App() {
       } else {
         setForm({
           taxRate: '18',
-          discount: '0',
+          discount: '',
           paymentStatus: 'PAID',
           paymentMethod: 'UPI',
         });
@@ -1433,18 +1433,21 @@ export default function App() {
                 <label>
                   Manufacturing Year
                   <input
-                    type="number"
-                    value={form.year || '2023'}
-                    onChange={(e) => setForm({ ...form, year: e.target.value })}
-                    placeholder="e.g. 2022"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={form.year !== undefined ? form.year : ''}
+                    onChange={(e) => setForm({ ...form, year: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="e.g. 2024"
                   />
                 </label>
                 <label>
                   Current Odometer (KM)
                   <input
-                    type="number"
-                    value={form.odometerReading || ''}
-                    onChange={(e) => setForm({ ...form, odometerReading: e.target.value })}
+                    type="text"
+                    inputMode="numeric"
+                    value={form.odometerReading !== undefined ? form.odometerReading : ''}
+                    onChange={(e) => setForm({ ...form, odometerReading: e.target.value.replace(/[^0-9]/g, '') })}
                     placeholder="e.g. 42000"
                   />
                 </label>
@@ -1526,18 +1529,21 @@ export default function App() {
                 <label>
                   Manufacturing Year
                   <input
-                    type="number"
-                    value={form.year || '2023'}
-                    onChange={(e) => setForm({ ...form, year: e.target.value })}
-                    placeholder="e.g. 2022"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={form.year !== undefined ? form.year : ''}
+                    onChange={(e) => setForm({ ...form, year: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="e.g. 2024"
                   />
                 </label>
                 <label>
                   Odometer Reading (KM)
                   <input
-                    type="number"
-                    value={form.odometerReading || ''}
-                    onChange={(e) => setForm({ ...form, odometerReading: e.target.value })}
+                    type="text"
+                    inputMode="numeric"
+                    value={form.odometerReading !== undefined ? form.odometerReading : ''}
+                    onChange={(e) => setForm({ ...form, odometerReading: e.target.value.replace(/[^0-9]/g, '') })}
                     placeholder="e.g. 45000"
                   />
                 </label>
@@ -1589,10 +1595,10 @@ export default function App() {
                   <label style={{ gridColumn: 'span 1' }}>
                     Current Odometer (KM) *
                     <input
-                      type="number"
-                      min="0"
-                      value={form.odometerReading !== undefined ? form.odometerReading : (prevOdo > 0 ? prevOdo : '')}
-                      onChange={(e) => setForm({ ...form, odometerReading: e.target.value })}
+                      type="text"
+                      inputMode="numeric"
+                      value={form.odometerReading !== undefined ? form.odometerReading : (prevOdo > 0 ? String(prevOdo) : '')}
+                      onChange={(e) => setForm({ ...form, odometerReading: e.target.value.replace(/[^0-9]/g, '') })}
                       placeholder={prevOdo > 0 ? `e.g. ${prevOdo + 500}` : 'e.g. 25000'}
                       title="Enter current odometer reading to record service mileage and update vehicle record"
                       required
@@ -1774,13 +1780,13 @@ export default function App() {
                   />
                   <input
                     style={{ width: '110px' }}
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="Charge (₹)"
                     value={newLabourCharge}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v === '' || parseFloat(v) >= 0) setNewLabourCharge(v);
+                      if (v === '' || /^\d*\.?\d*$/.test(v)) setNewLabourCharge(v);
                     }}
                   />
                   <button
@@ -1843,11 +1849,11 @@ export default function App() {
                   </select>
                   <input
                     style={{ width: '70px' }}
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Qty"
                     value={newPartQty}
-                    onChange={(e) => setNewPartQty(e.target.value)}
+                    onChange={(e) => setNewPartQty(e.target.value.replace(/[^0-9]/g, ''))}
                   />
                   <button
                     type="button"
@@ -1907,24 +1913,26 @@ export default function App() {
                 <label>
                   GST Rate (%)
                   <input
-                    type="number"
-                    min="0"
-                    value={form.taxRate || '18'}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="18"
+                    value={form.taxRate !== undefined ? form.taxRate : '18'}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v === '' || parseFloat(v) >= 0) setForm({ ...form, taxRate: v });
+                      if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, taxRate: v });
                     }}
                   />
                 </label>
                 <label>
                   Discount Amount (₹)
                   <input
-                    type="number"
-                    min="0"
-                    value={form.discount || '0'}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={form.discount !== undefined ? form.discount : ''}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v === '' || parseFloat(v) >= 0) setForm({ ...form, discount: v });
+                      if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, discount: v });
                     }}
                   />
                 </label>
@@ -1988,11 +1996,14 @@ export default function App() {
                     <label>
                       Amount Received (₹) *
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={form.paymentAmount !== undefined ? form.paymentAmount : invoiceGrandTotal}
-                        onChange={(e) => setForm({ ...form, paymentAmount: e.target.value })}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={form.paymentAmount !== undefined ? form.paymentAmount : (invoiceGrandTotal > 0 ? String(invoiceGrandTotal) : '')}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, paymentAmount: v });
+                        }}
                       />
                     </label>
 
@@ -2027,15 +2038,14 @@ export default function App() {
                 <label>
                   Amount (₹) *
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.amount || ''}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="e.g. 3500.00"
+                    value={form.amount !== undefined ? form.amount : ''}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v === '' || parseFloat(v) >= 0) setForm({ ...form, amount: v });
+                      if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, amount: v });
                     }}
-                    placeholder="e.g. 3500.00"
                     required
                   />
                 </label>
@@ -2090,15 +2100,14 @@ export default function App() {
                 <label>
                   Amount (₹) *
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.amount || ''}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="e.g. 4500.00"
+                    value={form.amount !== undefined ? form.amount : ''}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v === '' || parseFloat(v) >= 0) setForm({ ...form, amount: v });
+                      if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, amount: v });
                     }}
-                    placeholder="e.g. 4500.00"
                     required
                   />
                 </label>
@@ -2289,13 +2298,13 @@ export default function App() {
                   />
                   <input
                     style={{ width: '110px' }}
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="Charge (₹)"
                     value={newLabourCharge}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (v === '' || parseFloat(v) >= 0) setNewLabourCharge(v);
+                      if (v === '' || /^\d*\.?\d*$/.test(v)) setNewLabourCharge(v);
                     }}
                   />
                   <button
@@ -2354,11 +2363,11 @@ export default function App() {
                   </select>
                   <input
                     style={{ width: '70px' }}
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Qty"
                     value={newPartQty}
-                    onChange={(e) => setNewPartQty(e.target.value)}
+                    onChange={(e) => setNewPartQty(e.target.value.replace(/[^0-9]/g, ''))}
                   />
                   <button
                     type="button"
@@ -2565,14 +2574,11 @@ export default function App() {
                       Units to Add *
                     </span>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="e.g. 10"
                       value={restockQty}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === '' || parseInt(v, 10) >= 0) setRestockQty(v);
-                      }}
+                      onChange={(e) => setRestockQty(e.target.value.replace(/[^0-9]/g, ''))}
                       style={{ height: '36px', width: '100%' }}
                     />
                   </label>
