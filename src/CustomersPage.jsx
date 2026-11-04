@@ -255,32 +255,16 @@ export default function CustomersPage({
 
                       {/* Actions */}
                       <td className="td-actions" onClick={(e) => e.stopPropagation()}>
-                        <div className="action-cell-wrap">
-                          <button
-                            className="action-menu-trigger"
-                            onClick={() =>
-                              setActiveMenuId((prev) => (prev === cust.id ? null : cust.id))
-                            }
-                            title="Actions"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-
-                          {isMenuOpen && (
-                            <div className="modern-action-dropdown">
-                              <button
-                                className="dropdown-action-btn"
-                                onClick={() => {
-                                  setActiveMenuId(null);
-                                  if (onViewCustomer) onViewCustomer(cust);
-                                }}
-                              >
-                                <Eye size={14} />
-                                <span>View Details</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          className="direct-view-details-btn"
+                          onClick={() => {
+                            if (onViewCustomer) onViewCustomer(cust);
+                          }}
+                          title="View customer details"
+                        >
+                          <Eye size={14} />
+                          <span>View Details</span>
+                        </button>
                       </td>
                     </tr>
                   );

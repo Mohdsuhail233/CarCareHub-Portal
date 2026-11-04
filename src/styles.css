@@ -2777,6 +2777,29 @@ html, body, .app, .main, .content, .new-dashboard-wrapper, .reports-page-wrapper
   align-items: center;
 }
 
+.direct-view-details-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.direct-view-details-btn:hover {
+  background: #0ea5e9;
+  color: #ffffff;
+  border-color: #0ea5e9;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.25);
+}
+
 .action-menu-trigger {
   background: transparent;
   border: none;
