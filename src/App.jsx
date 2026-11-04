@@ -1033,25 +1033,44 @@ export default function App() {
           notes: form.notes || 'Payment due on delivery',
         });
 
-        // Automatically settle and record payment if 'PAID' (default)
-        if (form.paymentStatus !== 'UNPAID' && invRes?.id) {
-          const payAmt = form.paymentAmount !== undefined && form.paymentAmount !== ''
-            ? parseFloat(form.paymentAmount)
-            : Number(invRes.grandTotal || invoiceGrandTotal || 0);
+        const grandTot = Number(invRes?.grandTotal || invoiceGrandTotal || 0);
 
-          if (payAmt > 0) {
+        // 1. FULL PAYMENT SETTLEMENT
+        if ((form.paymentStatus || 'PAID') === 'PAID' && invRes?.id) {
+          if (grandTot > 0) {
             await api.createPayment(invRes.id, {
               invoiceId: invRes.id,
-              amount: payAmt,
+              amount: grandTot,
               paymentMethod: form.paymentMethod || 'UPI',
               transactionReference: form.transactionReference || ('TXN-' + Date.now().toString().slice(-6)),
-              notes: form.paymentNotes || 'Payment settled on invoice generation',
+              notes: form.paymentNotes || 'Full payment settled on invoice generation',
             });
-            toast('Invoice generated & Payment settled successfully!');
+            toast('Invoice generated & Full payment settled successfully!');
           } else {
             toast('Invoice generated successfully!');
           }
-        } else {
+        }
+        // 2. PARTIAL PAYMENT (ADVANCE) SETTLEMENT
+        else if (form.paymentStatus === 'PARTIALLY_PAID' && invRes?.id) {
+          const partialAmt = parseFloat(form.paymentAmount || 0);
+          if (isNaN(partialAmt) || partialAmt <= 0) {
+            throw new Error('Please enter a valid partial advance amount greater than 0');
+          }
+          if (partialAmt > grandTot) {
+            throw new Error(`Partial payment amount cannot exceed bill grand total ₹${grandTot.toLocaleString()}`);
+          }
+          await api.createPayment(invRes.id, {
+            invoiceId: invRes.id,
+            amount: partialAmt,
+            paymentMethod: form.paymentMethod || 'UPI',
+            transactionReference: form.transactionReference || ('PARTIAL-' + Date.now().toString().slice(-6)),
+            notes: form.paymentNotes || 'Advance payment received on invoice generation',
+          });
+          const remainingDue = grandTot - partialAmt;
+          toast(`Invoice generated & Advance ₹${partialAmt.toLocaleString()} settled! Remaining due: ₹${remainingDue.toLocaleString()}`);
+        }
+        // 3. UNPAID / PAY LATER
+        else {
           toast('Invoice generated successfully (Marked Unpaid / Due)!');
         }
       } else if (p === 'Payments') {
@@ -2045,26 +2064,46 @@ export default function App() {
                   <Wallet size={16} /> 4. Payment Settlement
                 </div>
 
-                <div className="form-toggle-bar">
+                <div className="form-toggle-bar" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                   <button
                     type="button"
                     className={`form-toggle-btn ${(form.paymentStatus || 'PAID') === 'PAID' ? 'active' : ''}`}
-                    onClick={() => setForm({ ...form, paymentStatus: 'PAID' })}
-                    style={(form.paymentStatus || 'PAID') === 'PAID' ? { background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' } : {}}
+                    onClick={() => setForm({ ...form, paymentStatus: 'PAID', paymentAmount: invoiceGrandTotal > 0 ? String(invoiceGrandTotal) : '' })}
+                    style={(form.paymentStatus || 'PAID') === 'PAID' ? { background: '#ecfdf5', color: '#065f46', borderColor: '#a7f3d0' } : {}}
                   >
                     <CheckCircle2 size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                    Receive Payment Now (Full / Settled)
+                    Full Paid (100% Settled)
                   </button>
+
+                  <button
+                    type="button"
+                    className={`form-toggle-btn ${form.paymentStatus === 'PARTIALLY_PAID' ? 'active' : ''}`}
+                    onClick={() => {
+                      const defaultPartial = invoiceGrandTotal > 0 ? String(Math.round(invoiceGrandTotal / 2)) : '';
+                      setForm({
+                        ...form,
+                        paymentStatus: 'PARTIALLY_PAID',
+                        paymentAmount: form.paymentAmount && Number(form.paymentAmount) < invoiceGrandTotal ? form.paymentAmount : defaultPartial,
+                      });
+                    }}
+                    style={form.paymentStatus === 'PARTIALLY_PAID' ? { background: '#eff6ff', color: '#1e40af', borderColor: '#bfdbfe' } : {}}
+                  >
+                    <Wallet size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                    Partially Paid (Advance)
+                  </button>
+
                   <button
                     type="button"
                     className={`form-toggle-btn ${form.paymentStatus === 'UNPAID' ? 'active' : ''}`}
-                    onClick={() => setForm({ ...form, paymentStatus: 'UNPAID' })}
-                    style={form.paymentStatus === 'UNPAID' ? { background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' } : {}}
+                    onClick={() => setForm({ ...form, paymentStatus: 'UNPAID', paymentAmount: '0' })}
+                    style={form.paymentStatus === 'UNPAID' ? { background: '#fffbeb', color: '#92400e', borderColor: '#fde68a' } : {}}
                   >
-                    Keep as Unpaid (Pay Later / Udhar)
+                    <Clock size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                    Unpaid (Pay Later / Udhar)
                   </button>
                 </div>
 
+                {/* 4A. FULL PAYMENT DETAILS */}
                 {(form.paymentStatus || 'PAID') === 'PAID' && (
                   <div style={{
                     gridColumn: 'span 2',
@@ -2077,6 +2116,22 @@ export default function App() {
                     border: '1px solid #e2e8f0',
                     marginBottom: '4px'
                   }}>
+                    <div style={{
+                      gridColumn: 'span 2',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12.5px',
+                      color: '#065f46'
+                    }}>
+                      <span>Full Bill Amount to Settle:</span>
+                      <b style={{ fontSize: '15px' }}>₹{invoiceGrandTotal.toLocaleString()}</b>
+                    </div>
+
                     <label>
                       Payment Mode *
                       <select
@@ -2089,16 +2144,12 @@ export default function App() {
                     </label>
 
                     <label>
-                      Amount Received (₹) *
+                      Settled Amount (₹)
                       <input
                         type="text"
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={form.paymentAmount !== undefined ? form.paymentAmount : (invoiceGrandTotal > 0 ? String(invoiceGrandTotal) : '')}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, paymentAmount: v });
-                        }}
+                        readOnly
+                        value={`₹${invoiceGrandTotal.toLocaleString()}`}
+                        style={{ background: '#f1f5f9', cursor: 'not-allowed', fontWeight: 600 }}
                       />
                     </label>
 
@@ -2110,6 +2161,98 @@ export default function App() {
                         onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
                       />
                     </label>
+                  </div>
+                )}
+
+                {/* 4B. PARTIAL PAYMENT (ADVANCE) DETAILS */}
+                {form.paymentStatus === 'PARTIALLY_PAID' && (
+                  <div style={{
+                    gridColumn: 'span 2',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '12px',
+                    background: '#f8fafc',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    marginBottom: '4px'
+                  }}>
+                    <label>
+                      Advance / Partial Amount Received (₹) *
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="e.g. 500"
+                        value={form.paymentAmount !== undefined ? form.paymentAmount : ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '' || /^\d*\.?\d*$/.test(v)) {
+                            setForm({ ...form, paymentAmount: v });
+                          }
+                        }}
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      Payment Mode *
+                      <select
+                        value={form.paymentMethod || 'UPI'}
+                        onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                      >
+                        <option value="UPI">UPI (Google Pay / PhonePe / Paytm / QR)</option>
+                        <option value="CASH">Cash</option>
+                      </select>
+                    </label>
+
+                    <div style={{
+                      gridColumn: 'span 2',
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '12px',
+                      color: '#1e40af'
+                    }}>
+                      <span>Total Bill: <b>₹{invoiceGrandTotal.toLocaleString()}</b></span>
+                      <span>Receiving Now: <b style={{ color: '#16a34a' }}>₹{Number(form.paymentAmount || 0).toLocaleString()}</b></span>
+                      <span>Remaining Balance Due: <b style={{ color: '#dc2626' }}>₹{Math.max(0, invoiceGrandTotal - Number(form.paymentAmount || 0)).toLocaleString()}</b></span>
+                    </div>
+
+                    <label style={{ gridColumn: 'span 2' }}>
+                      Transaction Ref / Note (Optional)
+                      <input
+                        placeholder="e.g. UPI Ref # or Advance received by counter"
+                        value={form.transactionReference || ''}
+                        onChange={(e) => setForm({ ...form, transactionReference: e.target.value })}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {/* 4C. UNPAID / PAY LATER NOTICE */}
+                {form.paymentStatus === 'UNPAID' && (
+                  <div style={{
+                    gridColumn: 'span 2',
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    borderRadius: '8px',
+                    padding: '12px 14px',
+                    fontSize: '12.5px',
+                    color: '#92400e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    <Clock size={18} style={{ color: '#d97706', flexShrink: 0 }} />
+                    <div>
+                      <b>Invoice will be generated as Unpaid (Due Balance: ₹{invoiceGrandTotal.toLocaleString()})</b>
+                      <div style={{ fontSize: '11.5px', color: '#b45309', marginTop: '2px' }}>
+                        Abhi koi payment settle nahi hogi. Invoice generate hone ke baad customer se payment Payments page se record ki ja sakti hai.
+                      </div>
+                    </div>
                   </div>
                 )}
               </>
@@ -2392,7 +2535,11 @@ export default function App() {
                 : modal.page === 'Customers'
                   ? 'Save Customer & Vehicle'
                   : modal.page === 'Invoices'
-                    ? ((form.paymentStatus || 'PAID') === 'PAID' ? 'Generate & Settle Payment' : 'Generate Invoice')
+                    ? ((form.paymentStatus || 'PAID') === 'PAID'
+                      ? 'Generate & Settle Full Payment'
+                      : form.paymentStatus === 'PARTIALLY_PAID'
+                        ? 'Generate & Settle Advance'
+                        : 'Generate Invoice (Unpaid)')
                     : modal.page === 'Payments'
                       ? (payableInvoices.length === 0 ? 'No Invoices Due' : 'Record Payment')
                       : 'Save Record'}
