@@ -1887,406 +1887,283 @@ html, body, .app, .main, .content, .new-dashboard-wrapper, .reports-page-wrapper
 }
 
 /* ========================================================
-   LOGIN SCREEN (HIGH-FIDELITY DESIGN MATCHING SCREENSHOT)
+   TESLA-STYLE MINIMALIST LUXURY LOGIN SCREEN (CARCAREHUB)
    ======================================================== */
-.login-screen-wrapper {
+.tesla-login-backdrop {
   min-height: 100vh;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 80% 20%, #1e2638 0%, #0c0f17 55%, #06080e 100%);
-  padding: 24px;
-  position: relative;
-  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 50%, #2b313d 0%, #151922 55%, #080a0e 100%);
+  padding: 30px 20px;
   box-sizing: border-box;
-}
-
-.login-modal-card {
-  background: #ffffff;
-  border-radius: 28px;
-  width: min(1040px, 95vw);
-  min-height: 590px;
-  display: grid;
-  grid-template-columns: 370px 1fr;
-  padding: 18px;
-  gap: 20px;
-  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.45);
-  position: relative;
-  z-index: 5;
-}
-
-/* Left Hero Panel */
-.login-left-panel {
-  background: linear-gradient(160deg, #161b26 0%, #0d111a 100%);
-  border-radius: 22px;
-  padding: 34px 28px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   position: relative;
   overflow: hidden;
-  color: #ffffff;
 }
 
-.login-mesh-bg {
+.tesla-login-backdrop::before {
+  content: '';
   position: absolute;
   inset: 0;
-  background-image: 
-    radial-gradient(rgba(255, 255, 255, 0.08) 1.5px, transparent 1.5px),
-    radial-gradient(ellipse at 100% 50%, rgba(37, 99, 235, 0.15) 0%, transparent 60%);
-  background-size: 20px 20px, 100% 100%;
-  opacity: 0.6;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
   pointer-events: none;
 }
 
-.login-brand-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  z-index: 2;
-}
-
-.login-brand-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #2563eb;
-  color: #ffffff;
+.tesla-login-card {
+  background: #ffffff;
+  border-radius: 32px;
+  width: min(1040px, 95vw);
+  min-height: 620px;
   display: grid;
-  place-items: center;
-}
-
-.login-brand-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.3px;
-}
-
-.login-hero-content {
-  margin: 40px 0;
-  z-index: 2;
-}
-
-.login-hero-title {
-  font-size: 42px;
-  font-weight: 800;
-  color: #ffffff;
-  line-height: 1.15;
-  letter-spacing: -1px;
-  margin: 0;
-}
-
-.login-security-badge {
-  background: rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  grid-template-columns: 1.1fr 1fr;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.65), 0 10px 30px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 5;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 2;
 }
 
-.security-icon-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #60a5fa;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.security-text-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.security-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.security-sub {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 1px;
-}
-
-/* Right Form Panel */
-.login-right-panel {
+/* Left Form Section */
+.tesla-login-left {
+  padding: 44px 48px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 24px 36px;
-}
-
-.login-form-container {
-  max-width: 420px;
-  width: 100%;
-  margin: auto;
-}
-
-.login-form-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.login-heading {
-  font-size: 28px;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 6px 0;
-  letter-spacing: -0.6px;
-}
-
-.login-subheading {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
-}
-
-.login-error-banner {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  border-radius: 9px;
-  padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.login-field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.login-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #475569;
-}
-
-.login-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.login-input {
-  height: 44px;
-  width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 9px;
-  padding: 0 14px;
-  font-size: 13.5px;
-  color: #0f172a;
-  outline: none;
   background: #ffffff;
-  transition: all 0.2s ease;
-  font-family: inherit;
   box-sizing: border-box;
 }
 
-.login-input:focus {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+.tesla-login-brand {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
-.login-input::placeholder {
+.tesla-brand-text {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 5px;
+  color: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  text-transform: uppercase;
+}
+
+.tesla-login-form-wrap {
+  max-width: 380px;
+  width: 100%;
+  margin: auto 0;
+}
+
+.tesla-login-headings {
+  margin-bottom: 28px;
+}
+
+.tesla-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px 0;
+}
+
+.tesla-subtitle {
+  font-size: 13.5px;
   color: #94a3b8;
   font-weight: 400;
+  margin: 0;
 }
 
-.login-password-toggle {
+.tesla-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.tesla-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.tesla-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.tesla-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.tesla-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-sizing: border-box;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.tesla-input::placeholder {
+  color: #9ca3af;
+}
+
+.tesla-input:focus {
+  border-color: #000000;
+  box-shadow: 0 0 0 1px #000000;
+}
+
+.tesla-input-password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.tesla-input-password-wrap .tesla-input {
+  padding-right: 44px;
+}
+
+.tesla-password-toggle-btn {
   position: absolute;
   right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #9ca3af;
   cursor: pointer;
-  display: grid;
-  place-items: center;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.2s;
 }
 
-.login-password-toggle:hover {
-  color: #475569;
+.tesla-password-toggle-btn:hover {
+  color: #111827;
 }
 
-.login-options-row {
+.tesla-remember-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
   margin-top: -2px;
+  margin-bottom: 4px;
+  font-size: 13px;
 }
 
-.login-remember-me {
+.tesla-checkbox-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #475569;
+  color: #374151;
   cursor: pointer;
   user-select: none;
 }
 
-.login-remember-me input {
+.tesla-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
   cursor: pointer;
+  accent-color: #000000;
+  border-radius: 4px;
 }
 
-.login-forgot-btn {
+.tesla-forgot-btn {
   background: transparent;
   border: none;
-  color: #0f172a;
-  font-size: 12px;
+  color: #111827;
+  font-size: 13px;
   font-weight: 600;
+  text-decoration: underline;
   cursor: pointer;
   padding: 0;
+  transition: opacity 0.2s;
 }
 
-.login-forgot-btn:hover {
-  text-decoration: underline;
+.tesla-forgot-btn:hover {
+  opacity: 0.7;
 }
 
-.login-submit-btn {
-  height: 44px;
+.tesla-signin-btn {
   width: 100%;
-  border-radius: 22px;
-  background: #181d2a;
+  height: 48px;
+  background: #000000;
   color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
   border: none;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 4px;
+  transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
 }
 
-.login-submit-btn:hover:not(:disabled) {
-  background: #0f131c;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);
+.tesla-signin-btn:hover {
+  background: #222222;
 }
 
-.login-submit-btn:disabled {
+.tesla-signin-btn:active {
+  transform: scale(0.99);
+}
+
+.tesla-signin-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.login-divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 6px 0;
-  color: #94a3b8;
-  font-size: 12px;
-}
-
-.login-divider::before,
-.login-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.login-divider span {
-  padding: 0 12px;
-}
-
-.login-google-btn {
-  height: 44px;
+/* Right Car Hero Section */
+.tesla-login-right {
+  position: relative;
   width: 100%;
-  border-radius: 22px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #1e293b;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  height: 100%;
+  min-height: 100%;
+  background: #000000;
+  overflow: hidden;
 }
 
-.login-google-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+.tesla-car-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
 }
 
-.login-demo-helper {
-  text-align: center;
-  margin-top: 6px;
-}
-
-.login-quick-demo-link {
-  background: transparent;
-  border: none;
-  color: #2563eb;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.2s;
-}
-
-.login-quick-demo-link:hover {
-  background: #eff6ff;
-  text-decoration: underline;
-}
-
-.login-footer-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: #94a3b8;
-  padding-top: 20px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.login-footer-row a {
-  color: #94a3b8;
-  text-decoration: none;
-}
-
-.login-footer-row a:hover {
-  text-decoration: underline;
-  color: #64748b;
-}
-
-@media (max-width: 820px) {
-  .login-modal-card {
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .tesla-login-card {
     grid-template-columns: 1fr;
     max-width: 480px;
+    border-radius: 24px;
+    min-height: auto;
   }
-  .login-left-panel {
+  .tesla-login-left {
+    padding: 36px 30px;
+  }
+  .tesla-login-right {
     display: none;
   }
-  .login-right-panel {
-    padding: 16px;
-  }
 }
+
 
 /* User Dropdown Menu */
 .modern-user-chevron.rotate {
