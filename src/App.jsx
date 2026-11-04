@@ -1105,7 +1105,6 @@ export default function App() {
         onLoginSuccess={(user) => {
           setIsAuthenticated(true);
           setCurrentUser(user);
-          toast(`Welcome! Logged in as ${user?.fullName || user?.email || 'User'}`);
           fetchAllData();
         }}
       />
