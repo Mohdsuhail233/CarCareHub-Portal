@@ -586,6 +586,11 @@ export default function App() {
         ? Number(inv.balanceDue)
         : Math.max(0, grandTotal - paidAmount);
 
+      // Exclude cancelled invoices
+      if (status === 'CANCELLED') {
+        return false;
+      }
+
       // If status is fully PAID and balance is 0 or less, exclude it!
       if (status === 'PAID' && balance <= 0.01) {
         return false;
