@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   LayoutDashboard, Users, Car, Wrench, Package, ArrowLeftRight,
   Receipt, Wallet, IndianRupee, CalendarClock, Bell, ChartNoAxesCombined,
-  Settings, Search, Plus, ChevronDown, ChevronRight, MoreHorizontal,
+  Search, Plus, ChevronDown, ChevronRight, MoreHorizontal,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, AlertTriangle,
   Menu, X, Download, Filter, Send, FileText, Check, Trash2, LogOut
 } from 'lucide-react';
@@ -24,7 +24,6 @@ const nav = [
   ['Service Reminders', CalendarClock],
   ['Notifications', Bell],
   ['Reports', ChartNoAxesCombined],
-  ['Settings', Settings],
 ];
 
 const statusClass = (s) => ({
@@ -1190,16 +1189,6 @@ export default function App() {
                     <small>{currentUser?.email || 'Garage Administrator'}</small>
                   </div>
                   <button
-                    className="user-dropdown-item"
-                    onClick={() => {
-                      setPage('Settings');
-                      setUserMenuOpen(false);
-                    }}
-                  >
-                    <Settings size={14} />
-                    <span>Settings</span>
-                  </button>
-                  <button
                     className="user-dropdown-item danger"
                     onClick={handleLogout}
                   >
@@ -1264,7 +1253,6 @@ export default function App() {
                         'Service Reminders': 'Upcoming service intervals for customer vehicles.',
                         Notifications: 'Automated WhatsApp reminder and invoice delivery logs.',
                         Reports: 'Financial summary and garage performance analytics.',
-                        Settings: 'Garage profile, GST rates, and notification preferences.',
                       }[page]
                     }
                   </p>
@@ -1300,14 +1288,12 @@ export default function App() {
                     setModal({ type: 'detail', page });
                   }}
                 />
-              ) : page === 'Reports' ? (
+              ) : (
                 <ReportsPage
                   summary={dashboardSummary}
                   rawData={rawData}
                   onRefresh={fetchAllData}
                 />
-              ) : (
-                <SettingsPage toast={toast} />
               )}
             </>
           )}
@@ -2981,101 +2967,5 @@ export default function App() {
         </Modal>
       )}
     </div>
-  );
-}
-
-function SettingsPage({ toast }) {
-  const [tab, setTab] = useState('Garage Profile');
-
-  return (
-    <section className="panel settings-panel">
-      <div className="settings-tabs">
-        {['Garage Profile', 'Invoice Settings', 'Notifications', 'Preferences'].map((t) => (
-          <button
-            className={tab === t ? 'selected' : ''}
-            onClick={() => setTab(t)}
-            key={t}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'Garage Profile' ? (
-        <>
-          <h3>Garage Information</h3>
-          <p className="settings-sub">These details appear on invoices and customer notifications.</p>
-          <div className="settings-grid">
-            {[
-              ['Garage Name', 'AutoCare Garage'],
-              ['Phone Number', '+91 98765 43210'],
-              ['Email', 'hello@autocaregarage.in'],
-              ['GST Number', '07AAAAA0000A1Z5'],
-              ['Address', 'Lajpat Nagar, New Delhi'],
-              ['Pincode', '110024'],
-            ].map((x) => (
-              <label key={x[0]}>
-                {x[0]}
-                <input defaultValue={x[1]} placeholder={'Enter ' + x[0].toLowerCase()} />
-              </label>
-            ))}
-          </div>
-        </>
-      ) : tab === 'Invoice Settings' ? (
-        <>
-          <h3>Invoice Configuration</h3>
-          <div className="settings-grid">
-            {[
-              ['Invoice Prefix', 'INV'],
-              ['Default GST (%)', '18'],
-              ['Payment Due (days)', '7'],
-              ['Terms & Conditions', 'Payment due on delivery'],
-            ].map((x) => (
-              <label key={x[0]}>
-                {x[0]}
-                <input defaultValue={x[1]} />
-              </label>
-            ))}
-          </div>
-        </>
-      ) : tab === 'Notifications' ? (
-        <>
-          <h3>Notification Preferences</h3>
-          {[
-            'WhatsApp service updates',
-            'Invoice PDF delivery',
-            'Payment confirmations',
-            '50-day service reminders',
-          ].map((x) => (
-            <label className="toggle-row" key={x}>
-              {x}
-              <input type="checkbox" defaultChecked />
-            </label>
-          ))}
-        </>
-      ) : (
-        <>
-          <h3>Preferences</h3>
-          <div className="settings-grid">
-            <label>
-              Currency
-              <select defaultValue="INR">
-                <option>INR (₹)</option>
-              </select>
-            </label>
-            <label>
-              Timezone
-              <select defaultValue="Asia/Kolkata">
-                <option>Asia/Kolkata (IST)</option>
-              </select>
-            </label>
-          </div>
-        </>
-      )}
-
-      <button className="primary" onClick={() => toast('Settings saved successfully')}>
-        Save Changes
-      </button>
-    </section>
   );
 }
