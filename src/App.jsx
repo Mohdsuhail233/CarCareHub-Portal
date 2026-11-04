@@ -77,7 +77,7 @@ function Badge({ children }) {
   return <span className={'badge ' + statusClass(children)}>{children}</span>;
 }
 
-function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment, onSendReminder, sendingReminderId }) {
+function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
 
@@ -275,30 +275,6 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
                           <Wallet size={12} /> Collect
                         </button>
                       )}
-                      {page === 'Service Reminders' && (
-                        <button
-                          className="outline"
-                          disabled={sendingReminderId === rawItem.id}
-                          style={{
-                            padding: '3px 8px',
-                            fontSize: '11px',
-                            marginRight: '6px',
-                            borderColor: '#2563eb',
-                            color: '#1d4ed8',
-                            background: '#eff6ff',
-                            fontWeight: 600,
-                            borderRadius: '5px',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                          }}
-                          onClick={() => onSendReminder && onSendReminder(rawItem.id)}
-                          title="Send WhatsApp Reminder to Customer"
-                        >
-                          <Send size={12} /> {sendingReminderId === rawItem.id ? 'Sending...' : 'WhatsApp'}
-                        </button>
-                      )}
                       <button className="text-btn view-details-btn" onClick={() => onView(r, i)}>
                         View details <ChevronRight size={13} />
                       </button>
@@ -434,7 +410,6 @@ export default function App() {
   const [restockNotes, setRestockNotes] = useState('');
   const [restockLoading, setRestockLoading] = useState(false);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
-  const [sendingReminderId, setSendingReminderId] = useState(null);
 
   const toast = (m) => {
     setToastMsg(m);
@@ -1039,44 +1014,6 @@ export default function App() {
     }
   };
 
-  const handleSendWhatsAppReminder = async (reminderId) => {
-    setSendingReminderId(reminderId);
-    try {
-      const res = await api.sendServiceReminderWhatsApp(reminderId);
-      const msg = res?.message || 'Service reminder sent to customer on WhatsApp successfully!';
-      toast(msg);
-      await fetchAllData();
-    } catch (e) {
-      let raw = e?.message || 'Failed to send service reminder';
-      let clean = 'Could not send WhatsApp reminder. Please check customer phone number.';
-      try {
-        if (raw.includes('{') && raw.includes('}')) {
-          const start = raw.indexOf('{');
-          const end = raw.lastIndexOf('}');
-          const parsed = JSON.parse(raw.substring(start, end + 1));
-          raw = parsed.message || parsed.error?.message || (typeof parsed.error === 'string' ? parsed.error : '');
-        }
-      } catch (_) {}
-
-      if (raw) {
-        if (raw.includes('(#131030)')) {
-          clean = 'Customer phone number is not allowed on Meta test account.';
-        } else if (raw.includes('(#132001)')) {
-          clean = 'WhatsApp reminder template not found or pending approval.';
-        } else if (raw.includes('(#131026)')) {
-          clean = 'Message undeliverable to this phone number.';
-        } else {
-          clean = raw.replace(/^Error \d+:\s*/i, '')
-                     .replace(/^WhatsApp API error:\s*/i, '')
-                     .trim();
-        }
-      }
-      toast(clean || 'Could not send WhatsApp reminder');
-    } finally {
-      setSendingReminderId(null);
-    }
-  };
-
   // Live bill computation for Add Invoice Modal
   const labourTotal = useMemo(() => {
     return jobTasks.reduce((acc, t) => acc + Number(t.labourCharge || 0), 0);
@@ -1279,8 +1216,6 @@ export default function App() {
                   invoices={rawData.Invoices || []}
                   onAdd={(target) => openAdd(typeof target === 'string' ? target : page)}
                   onCollectPayment={(item) => openAdd('Payments', item)}
-                  onSendReminder={handleSendWhatsAppReminder}
-                  sendingReminderId={sendingReminderId}
                   onRefresh={fetchAllData}
                   onUpdateStatus={handleUpdateJobStatus}
                   onView={(row, idx) => {
@@ -2205,8 +2140,14 @@ export default function App() {
           <div className="detail-list">
             {(tableData[modal.page]?.cols || []).map((col, i) => (
               <div key={col}>
-                <small>{col}</small>
-                <b>{selected.row[i] || '—'}</b>
+                <small>{col.toUpperCase()}</small>
+                {col === 'Status' ? (
+                  <div>
+                    <Badge>{selected.row[i] || '—'}</Badge>
+                  </div>
+                ) : (
+                  <b>{selected.row[i] || '—'}</b>
+                )}
               </div>
             ))}
           </div>
@@ -2375,35 +2316,45 @@ export default function App() {
           {/* INVOICES DETAILS: ITEMIZED BILL TABLE & TOTALS */}
           {modal.page === 'Invoices' && selected.raw && (
             <div style={{ marginTop: '16px' }}>
-              <h4 style={{ fontSize: '13px', fontWeight: 800, margin: '14px 0 6px', color: '#102344' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 600, margin: '14px 0 8px', color: '#334155' }}>
                 Itemized Bill (Labour Charges & Spare Parts):
               </h4>
 
               {selected.raw.items && selected.raw.items.length > 0 ? (
-                <table className="items-table">
+                <table className="items-table" style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
                   <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Description</th>
-                      <th>Qty</th>
-                      <th>Unit Price (₹)</th>
-                      <th>Tax / GST</th>
-                      <th>Line Total (₹)</th>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Type</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Description</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Qty</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Unit Price (₹)</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Tax / GST</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Line Total (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selected.raw.items.map((it) => (
-                      <tr key={it.id}>
-                        <td>
-                          <span className={it.itemType === 'LABOUR' ? 'item-badge-labour' : 'item-badge-part'}>
+                      <tr key={it.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span
+                            style={{
+                              background: it.itemType === 'LABOUR' ? '#e0f2fe' : '#fef3c7',
+                              color: it.itemType === 'LABOUR' ? '#0284c7' : '#d97706',
+                              padding: '3px 8px',
+                              borderRadius: '12px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              textTransform: 'uppercase'
+                            }}
+                          >
                             {it.itemType}
                           </span>
                         </td>
-                        <td><b>{it.description}</b></td>
-                        <td>{it.quantity}</td>
-                        <td>₹{Number(it.unitPrice || 0).toLocaleString()}</td>
-                        <td>₹{Number(it.taxAmount || 0).toLocaleString()} ({it.taxRate}%)</td>
-                        <td><b>₹{Number(it.lineTotal || 0).toLocaleString()}</b></td>
+                        <td style={{ padding: '10px 12px', color: '#334155' }}>{it.description}</td>
+                        <td style={{ padding: '10px 12px', color: '#334155' }}>{it.quantity}</td>
+                        <td style={{ padding: '10px 12px', color: '#334155' }}>₹{Number(it.unitPrice || 0).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px', color: '#334155' }}>₹{Number(it.taxAmount || 0).toLocaleString()} ({it.taxRate}%)</td>
+                        <td style={{ padding: '10px 12px', color: '#0f172a', fontWeight: 700 }}>₹{Number(it.lineTotal || 0).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2414,44 +2365,65 @@ export default function App() {
                 </p>
               )}
 
-              <div className="bill-summary-box">
-                <div className="bill-summary-row">
-                  <span>Subtotal:</span>
-                  <b>₹{Number(selected.raw.subtotal || 0).toLocaleString()}</b>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  marginTop: '16px',
+                  display: 'grid',
+                  gap: '8px',
+                  fontSize: '12px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+                  <span>Subtotal</span>
+                  <b style={{ color: '#0f172a' }}>₹{Number(selected.raw.subtotal || 0).toLocaleString()}</b>
                 </div>
-                <div className="bill-summary-row">
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
                   <span>GST Tax ({selected.raw.taxRate || 18}%):</span>
-                  <b>₹{Number(selected.raw.taxAmount || 0).toLocaleString()}</b>
+                  <b style={{ color: '#0f172a' }}>₹{Number(selected.raw.taxAmount || 0).toLocaleString()}</b>
                 </div>
                 {Number(selected.raw.discount || 0) > 0 && (
-                  <div className="bill-summary-row" style={{ color: '#059669' }}>
-                    <span>Discount:</span>
-                    <b>-₹{Number(selected.raw.discount || 0).toLocaleString()}</b>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600 }}>Discount:</span>
+                    <b style={{ color: '#16a34a' }}>-₹{Number(selected.raw.discount || 0).toLocaleString()}</b>
                   </div>
                 )}
-                <div className="bill-summary-row total">
-                  <span>Grand Total:</span>
-                  <span style={{ color: '#1d4ed8', fontSize: '15px' }}>
+                <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '4px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <b style={{ fontSize: '14px', color: '#0f172a' }}>Grand Total</b>
+                  <span style={{ color: '#2563eb', fontSize: '18px', fontWeight: 800 }}>
                     ₹{Number(selected.raw.grandTotal || 0).toLocaleString()}
                   </span>
                 </div>
-                <div className="bill-summary-row">
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
                   <span>Amount Paid:</span>
-                  <b style={{ color: '#059669' }}>₹{Number(selected.raw.paidAmount || 0).toLocaleString()}</b>
+                  <b style={{ color: '#16a34a' }}>₹{Number(selected.raw.paidAmount || 0).toLocaleString()}</b>
                 </div>
-                <div className="bill-summary-row">
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
                   <span>Balance Due:</span>
-                  <b style={{ color: '#dc2626' }}>
+                  <b style={{ color: Math.max(0, Number(selected.raw.grandTotal || 0) - Number(selected.raw.paidAmount || 0)) > 0 ? '#dc2626' : '#94a3b8' }}>
                     ₹{Math.max(0, Number(selected.raw.grandTotal || 0) - Number(selected.raw.paidAmount || 0)).toLocaleString()}
                   </b>
                 </div>
               </div>
 
-              <div style={{ marginTop: '16px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 {Math.max(0, Number(selected.raw.grandTotal || 0) - Number(selected.raw.paidAmount || 0)) > 0 && (
                   <button
                     className="primary"
-                    style={{ background: '#059669', borderColor: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    style={{
+                      background: '#059669',
+                      borderColor: '#059669',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      borderRadius: '8px',
+                      padding: '9px 14px',
+                      fontSize: '12px'
+                    }}
                     onClick={() => {
                       const inv = selected.raw;
                       setModal(null);
@@ -2466,16 +2438,44 @@ export default function App() {
                   target="_blank"
                   rel="noreferrer"
                   className="outline"
-                  style={{ textDecoration: 'none' }}
+                  style={{
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    padding: '9px 14px',
+                    fontSize: '12px',
+                    background: '#f8fafc',
+                    borderColor: '#e2e8f0',
+                    color: '#0f172a',
+                    fontWeight: 600
+                  }}
                 >
-                  <FileText size={15} /> Download PDF
+                  <FileText size={15} color="#475569" /> Download PDF
                 </a>
                 <button
-                  className="primary"
                   disabled={sendingWhatsApp}
                   onClick={() => handleSendWhatsAppInvoice(selected.raw.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '8px',
+                    padding: '9px 16px',
+                    fontSize: '12px',
+                    background: '#000000',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 600,
+                    cursor: sendingWhatsApp ? 'not-allowed' : 'pointer',
+                    opacity: sendingWhatsApp ? 0.7 : 1
+                  }}
                 >
-                  <Send size={15} /> {sendingWhatsApp ? 'Sending WhatsApp...' : 'Send WhatsApp Alert'}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                  </svg>
+                  {sendingWhatsApp ? 'Sending WhatsApp...' : 'Send WhatsApp Alert'}
                 </button>
               </div>
             </div>
@@ -2572,45 +2572,40 @@ export default function App() {
             </div>
           )}
 
-          {/* SERVICE REMINDERS DETAILS: ACTION BUTTON TO SEND WHATSAPP */}
-          {modal.page === 'Service Reminders' && selected.raw && (
-            <div style={{ marginTop: '16px' }}>
-              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <b style={{ fontSize: '13px', color: '#102344', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CalendarClock size={16} color="#1d4ed8" /> WhatsApp Service Reminder
-                  </b>
-                  <Badge>{selected.raw.status || (selected.raw.completed ? 'Completed' : 'Upcoming')}</Badge>
-                </div>
-                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}>
-                  Send an official WhatsApp service due alert directly to <b>{selected.raw.customerName || 'the customer'}</b> for vehicle <b>{selected.raw.registrationNumber}</b>.
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                  <button
-                    className="primary"
-                    disabled={sendingReminderId === selected.raw.id}
-                    onClick={() => handleSendWhatsAppReminder(selected.raw.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Send size={15} /> {sendingReminderId === selected.raw.id ? 'Sending WhatsApp...' : 'Send WhatsApp Reminder Now'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="modal-actions">
-            <button className="outline" onClick={() => setModal(null)}>
+          <div className="modal-actions" style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #edf0f4', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button
+              className="outline"
+              style={{
+                borderRadius: '8px',
+                padding: '9px 20px',
+                background: '#f8fafc',
+                borderColor: '#e2e8f0',
+                color: '#334155',
+                fontWeight: 600
+              }}
+              onClick={() => setModal(null)}
+            >
               Close
             </button>
             <button
               className="primary"
+              style={{
+                borderRadius: '8px',
+                padding: '9px 22px',
+                background: '#0f172a',
+                borderColor: '#0f172a',
+                color: '#ffffff',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
               onClick={() => {
                 setModal(null);
                 toast('Record viewed');
               }}
             >
-              Done
+              <Check size={16} /> Done
             </button>
           </div>
         </Modal>
