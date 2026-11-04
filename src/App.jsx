@@ -77,7 +77,7 @@ function Badge({ children }) {
   return <span className={'badge ' + statusClass(children)}>{children}</span>;
 }
 
-function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment }) {
+function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment, onSendReminder, sendingReminderId }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
 
@@ -275,6 +275,30 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
                           <Wallet size={12} /> Collect
                         </button>
                       )}
+                      {page === 'Service Reminders' && (
+                        <button
+                          className="outline"
+                          disabled={sendingReminderId === rawItem.id}
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            marginRight: '6px',
+                            borderColor: '#2563eb',
+                            color: '#1d4ed8',
+                            background: '#eff6ff',
+                            fontWeight: 600,
+                            borderRadius: '5px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                          }}
+                          onClick={() => onSendReminder && onSendReminder(rawItem.id)}
+                          title="Send WhatsApp Reminder to Customer"
+                        >
+                          <Send size={12} /> {sendingReminderId === rawItem.id ? 'Sending...' : 'WhatsApp'}
+                        </button>
+                      )}
                       <button className="text-btn view-details-btn" onClick={() => onView(r, i)}>
                         View details <ChevronRight size={13} />
                       </button>
@@ -410,6 +434,7 @@ export default function App() {
   const [restockNotes, setRestockNotes] = useState('');
   const [restockLoading, setRestockLoading] = useState(false);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const [sendingReminderId, setSendingReminderId] = useState(null);
 
   const toast = (m) => {
     setToastMsg(m);
@@ -1014,6 +1039,44 @@ export default function App() {
     }
   };
 
+  const handleSendWhatsAppReminder = async (reminderId) => {
+    setSendingReminderId(reminderId);
+    try {
+      const res = await api.sendServiceReminderWhatsApp(reminderId);
+      const msg = res?.message || 'Service reminder sent to customer on WhatsApp successfully!';
+      toast(msg);
+      await fetchAllData();
+    } catch (e) {
+      let raw = e?.message || 'Failed to send service reminder';
+      let clean = 'Could not send WhatsApp reminder. Please check customer phone number.';
+      try {
+        if (raw.includes('{') && raw.includes('}')) {
+          const start = raw.indexOf('{');
+          const end = raw.lastIndexOf('}');
+          const parsed = JSON.parse(raw.substring(start, end + 1));
+          raw = parsed.message || parsed.error?.message || (typeof parsed.error === 'string' ? parsed.error : '');
+        }
+      } catch (_) {}
+
+      if (raw) {
+        if (raw.includes('(#131030)')) {
+          clean = 'Customer phone number is not allowed on Meta test account.';
+        } else if (raw.includes('(#132001)')) {
+          clean = 'WhatsApp reminder template not found or pending approval.';
+        } else if (raw.includes('(#131026)')) {
+          clean = 'Message undeliverable to this phone number.';
+        } else {
+          clean = raw.replace(/^Error \d+:\s*/i, '')
+                     .replace(/^WhatsApp API error:\s*/i, '')
+                     .trim();
+        }
+      }
+      toast(clean || 'Could not send WhatsApp reminder');
+    } finally {
+      setSendingReminderId(null);
+    }
+  };
+
   // Live bill computation for Add Invoice Modal
   const labourTotal = useMemo(() => {
     return jobTasks.reduce((acc, t) => acc + Number(t.labourCharge || 0), 0);
@@ -1216,6 +1279,8 @@ export default function App() {
                   invoices={rawData.Invoices || []}
                   onAdd={(target) => openAdd(typeof target === 'string' ? target : page)}
                   onCollectPayment={(item) => openAdd('Payments', item)}
+                  onSendReminder={handleSendWhatsAppReminder}
+                  sendingReminderId={sendingReminderId}
                   onRefresh={fetchAllData}
                   onUpdateStatus={handleUpdateJobStatus}
                   onView={(row, idx) => {
@@ -2504,6 +2569,33 @@ export default function App() {
                   </div>
                 );
               })()}
+            </div>
+          )}
+
+          {/* SERVICE REMINDERS DETAILS: ACTION BUTTON TO SEND WHATSAPP */}
+          {modal.page === 'Service Reminders' && selected.raw && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <b style={{ fontSize: '13px', color: '#102344', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CalendarClock size={16} color="#1d4ed8" /> WhatsApp Service Reminder
+                  </b>
+                  <Badge>{selected.raw.status || (selected.raw.completed ? 'Completed' : 'Upcoming')}</Badge>
+                </div>
+                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}>
+                  Send an official WhatsApp service due alert directly to <b>{selected.raw.customerName || 'the customer'}</b> for vehicle <b>{selected.raw.registrationNumber}</b>.
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    className="primary"
+                    disabled={sendingReminderId === selected.raw.id}
+                    onClick={() => handleSendWhatsAppReminder(selected.raw.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Send size={15} /> {sendingReminderId === selected.raw.id ? 'Sending WhatsApp...' : 'Send WhatsApp Reminder Now'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

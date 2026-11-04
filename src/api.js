@@ -172,6 +172,9 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  sendServiceReminderWhatsApp: (id) => request(`/service-reminders/${id}/send-whatsapp`, {
+    method: 'POST',
+  }),
   completeServiceReminder: (id) => request(`/service-reminders/${id}/complete`, {
     method: 'PATCH',
   }),
