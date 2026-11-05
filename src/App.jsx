@@ -4,7 +4,7 @@ import {
   Receipt, Wallet, IndianRupee, CalendarClock, Bell, ChartNoAxesCombined,
   Search, Plus, ChevronDown, ChevronRight, MoreHorizontal,
   ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, AlertTriangle,
-  Menu, X, Download, Filter, Send, FileText, Check, Trash2, LogOut
+  Menu, X, Download, Filter, Send, FileText, Check, Trash2, LogOut, Pencil
 } from 'lucide-react';
 import { api } from './api';
 import ReportsPage from './ReportsPage';
@@ -798,6 +798,46 @@ export default function App() {
     setModal({ type: 'add', page: p });
   };
 
+  const openEditCustomer = (cust) => {
+    if (!cust) return;
+    setForm({
+      id: cust.id,
+      fullName: cust.fullName || cust.name || '',
+      phoneNumber: cust.phoneNumber || cust.phone || '',
+      email: cust.email || '',
+      address: cust.address || '',
+      status: cust.status || 'Active',
+      whatsappConsent: cust.whatsappConsent ?? true,
+    });
+    setModal({ type: 'edit-customer', page: 'Customers', data: cust });
+  };
+
+  const handleUpdateCustomer = async () => {
+    if (!form.id) return;
+    if (!form.fullName?.trim() || !form.phoneNumber?.trim()) {
+      alert('Customer Name and Phone Number are required');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.updateCustomer(form.id, {
+        fullName: form.fullName.trim(),
+        phoneNumber: form.phoneNumber.trim(),
+        email: form.email?.trim() || null,
+        address: form.address?.trim() || '',
+        status: form.status || 'Active',
+        whatsappConsent: form.whatsappConsent ?? true,
+      });
+      toast(`Customer "${form.fullName}" updated successfully!`);
+      setModal(null);
+      await fetchAllData();
+    } catch (err) {
+      alert(err.message || 'Failed to update customer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 1-Click Status Update for Service Jobs
   const handleUpdateJobStatus = async (job, newStatus) => {
     if (!job?.id) return;
@@ -1337,6 +1377,7 @@ export default function App() {
               vehicles={rawData.Vehicles}
               loading={loading}
               onAddCustomer={() => openAdd('Customers')}
+              onEditCustomer={openEditCustomer}
               onViewCustomer={(cust) => {
                 const idx = (rawData.Customers || []).findIndex((c) => c.id === cust.id);
                 const row = tableData.Customers?.rows?.[idx] || [];
@@ -2548,6 +2589,130 @@ export default function App() {
         </Modal>
       )}
 
+      {/* EDIT CUSTOMER MODAL */}
+      {modal?.type === 'edit-customer' && (
+        <Modal
+          title={`Edit Customer: ${form.fullName || 'Client'}`}
+          onClose={() => setModal(null)}
+        >
+          <div className="form-grid">
+            <label>
+              <span>Customer Full Name *</span>
+              <input
+                type="text"
+                placeholder="e.g. Rahul Sharma"
+                value={form.fullName || ''}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                required
+              />
+            </label>
+
+            <label>
+              <span>Phone Number *</span>
+              <input
+                type="tel"
+                placeholder="e.g. 9876543210"
+                value={form.phoneNumber || ''}
+                onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                required
+              />
+            </label>
+
+            <label>
+              <span>Email Address</span>
+              <input
+                type="email"
+                placeholder="e.g. customer@example.com"
+                value={form.email || ''}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </label>
+
+            <label>
+              <span>Status</span>
+              <select
+                value={form.status || 'Active'}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </label>
+
+            <label style={{ gridColumn: 'span 2' }}>
+              <span>Address / Location</span>
+              <textarea
+                rows={2}
+                placeholder="e.g. House No. 12, Sector 15, New Delhi"
+                value={form.address || ''}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </label>
+
+            <div
+              style={{
+                gridColumn: 'span 2',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginTop: '4px',
+                background: '#f8fafc',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <input
+                type="checkbox"
+                id="editWhatsappConsent"
+                checked={form.whatsappConsent ?? true}
+                onChange={(e) => setForm({ ...form, whatsappConsent: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <label
+                htmlFor="editWhatsappConsent"
+                style={{
+                  margin: 0,
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  color: '#334155',
+                  fontWeight: 600,
+                }}
+              >
+                Enable WhatsApp Service Notifications & Invoice Delivery
+              </label>
+            </div>
+          </div>
+
+          <div
+            className="modal-actions"
+            style={{
+              marginTop: '20px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+            }}
+          >
+            <button
+              className="outline"
+              type="button"
+              onClick={() => setModal(null)}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              className="primary"
+              type="button"
+              onClick={handleUpdateCustomer}
+              disabled={loading || !form.fullName?.trim() || !form.phoneNumber?.trim()}
+            >
+              {loading ? 'Updating Customer...' : 'Save Changes'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* DETAIL MODAL */}
       {modal?.type === 'detail' && selected && (
         <Modal title={`${modal.page} Details`} onClose={() => setModal(null)}>
@@ -3248,6 +3413,31 @@ export default function App() {
             </div>
           )}
           <div className="modal-actions" style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #edf0f4', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            {modal.page === 'Customers' && selected?.raw && (
+              <button
+                type="button"
+                className="outline"
+                style={{
+                  borderRadius: '8px',
+                  padding: '9px 18px',
+                  background: '#f0fdf4',
+                  borderColor: '#86efac',
+                  color: '#166534',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginRight: 'auto',
+                }}
+                onClick={() => {
+                  const custToEdit = selected.raw;
+                  setModal(null);
+                  setTimeout(() => openEditCustomer(custToEdit), 50);
+                }}
+              >
+                <Pencil size={14} /> Edit Customer
+              </button>
+            )}
             <button
               className="outline"
               style={{

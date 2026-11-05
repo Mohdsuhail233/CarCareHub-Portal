@@ -10,6 +10,7 @@ import {
   MapPin,
   Users,
   User,
+  Pencil,
 } from 'lucide-react';
 
 export default function CustomersPage({
@@ -17,6 +18,7 @@ export default function CustomersPage({
   vehicles = [],
   loading = false,
   onAddCustomer,
+  onEditCustomer,
   onViewCustomer,
   toast,
 }) {
@@ -255,16 +257,28 @@ export default function CustomersPage({
 
                       {/* Actions */}
                       <td className="td-actions" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className="direct-view-details-btn"
-                          onClick={() => {
-                            if (onViewCustomer) onViewCustomer(cust);
-                          }}
-                          title="View customer details"
-                        >
-                          <Eye size={14} />
-                          <span>View Details</span>
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button
+                            className="direct-edit-btn"
+                            onClick={() => {
+                              if (onEditCustomer) onEditCustomer(cust);
+                            }}
+                            title="Edit customer details"
+                          >
+                            <Pencil size={13} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            className="direct-view-details-btn"
+                            onClick={() => {
+                              if (onViewCustomer) onViewCustomer(cust);
+                            }}
+                            title="View customer details"
+                          >
+                            <Eye size={13} />
+                            <span>View Details</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

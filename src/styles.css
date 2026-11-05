@@ -2738,6 +2738,29 @@ html, body, .app, .main, .content, .new-dashboard-wrapper, .reports-page-wrapper
   align-items: center;
 }
 
+.direct-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.direct-edit-btn:hover {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+}
+
 .direct-view-details-btn {
   display: inline-flex;
   align-items: center;
