@@ -1058,7 +1058,7 @@ export default function App() {
       if (availableJob) {
         setForm({
           serviceJobId: availableJob.id,
-          taxRate: '18',
+          taxRate: '0',
           discount: '',
           paymentStatus: 'PAID',
           paymentMethod: 'UPI',
@@ -1066,7 +1066,7 @@ export default function App() {
         fetchJobBreakdown(availableJob.id);
       } else {
         setForm({
-          taxRate: '18',
+          taxRate: '0',
           discount: '',
           paymentStatus: 'PAID',
           paymentMethod: 'UPI',
@@ -1533,10 +1533,11 @@ export default function App() {
           await api.updateServiceJobStatus(jobId, 'COMPLETED');
         }
 
+        const invTaxRate = form.taxRate !== undefined && form.taxRate !== '' ? parseFloat(form.taxRate) || 0 : 0;
         const invRes = await api.createInvoice(jobId, {
           dueDate: form.dueDate || new Date().toISOString().slice(0, 10),
-          includeGst: form.includeGst !== false,
-          taxRate: form.taxRate ? parseFloat(form.taxRate) : 18.0,
+          includeGst: form.includeGst !== undefined ? Boolean(form.includeGst) : invTaxRate > 0,
+          taxRate: invTaxRate,
           discount: form.discount ? parseFloat(form.discount) : 0,
           notes: form.notes || 'Payment due on delivery',
         });
@@ -1717,7 +1718,7 @@ export default function App() {
   const invoiceSubtotal = labourTotal + partsTotal;
   const discountNum = parseFloat(form.discount || 0) || 0;
   const taxableAmount = Math.max(0, invoiceSubtotal - discountNum);
-  const taxRateNum = parseFloat(form.taxRate || 18) || 0;
+  const taxRateNum = form.taxRate !== undefined && form.taxRate !== '' ? parseFloat(form.taxRate) || 0 : 0;
   const gstAmount = Math.round((taxableAmount * taxRateNum) / 100);
   const invoiceGrandTotal = taxableAmount + gstAmount;
 
@@ -2583,7 +2584,7 @@ export default function App() {
                     <b>₹{invoiceSubtotal.toLocaleString()}</b>
                   </div>
                   <div className="bill-summary-row">
-                    <span>GST Tax ({form.taxRate || 18}%):</span>
+                    <span>GST Tax ({form.taxRate !== undefined && form.taxRate !== '' ? form.taxRate : '0'}%):</span>
                     <b>₹{gstAmount.toLocaleString()}</b>
                   </div>
                   {discountNum > 0 && (
@@ -2617,8 +2618,8 @@ export default function App() {
                   <input
                     type="text"
                     inputMode="decimal"
-                    placeholder="18"
-                    value={form.taxRate !== undefined ? form.taxRate : '18'}
+                    placeholder="0"
+                    value={form.taxRate !== undefined ? form.taxRate : '0'}
                     onChange={(e) => {
                       const v = e.target.value;
                       if (v === '' || /^\d*\.?\d*$/.test(v)) setForm({ ...form, taxRate: v });
@@ -3697,7 +3698,7 @@ export default function App() {
                   <b style={{ color: '#0f172a' }}>₹{Number(selected.raw.subtotal || 0).toLocaleString()}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                  <span>GST Tax ({selected.raw.taxRate || 18}%):</span>
+                  <span>GST Tax ({selected.raw.taxRate !== undefined && selected.raw.taxRate !== null ? selected.raw.taxRate : 0}%):</span>
                   <b style={{ color: '#0f172a' }}>₹{Number(selected.raw.taxAmount || 0).toLocaleString()}</b>
                 </div>
                 {Number(selected.raw.discount || 0) > 0 && (
