@@ -1533,6 +1533,7 @@ export default function App() {
           await api.updateServiceJobStatus(jobId, 'COMPLETED');
         }
 
+        const isSettlingPayment = (form.paymentStatus || 'PAID') === 'PAID' || form.paymentStatus === 'PARTIALLY_PAID';
         const invTaxRate = form.taxRate !== undefined && form.taxRate !== '' ? parseFloat(form.taxRate) || 0 : 0;
         const invRes = await api.createInvoice(jobId, {
           dueDate: form.dueDate || new Date().toISOString().slice(0, 10),
@@ -1540,6 +1541,7 @@ export default function App() {
           taxRate: invTaxRate,
           discount: form.discount ? parseFloat(form.discount) : 0,
           notes: form.notes || 'Payment due on delivery',
+          sendWhatsApp: !isSettlingPayment,
         });
 
         const grandTot = Number(invRes?.grandTotal || invoiceGrandTotal || 0);
