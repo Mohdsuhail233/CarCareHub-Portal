@@ -283,12 +283,12 @@ export default function Dashboard({ go, summary, rawData, loading, onRefresh, op
           <div className="chart-header-left">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h3>Revenue Trends</h3>
-              <span className="live-db-pill">Live DB</span>
+               
             </div>
             <p>
               {viewMode === 'DAILY'
                 ? `Day-by-day revenue collected across ${timeframe === '7d' ? 'last 7 days' : 'last 30 days'}`
-                : 'Month-by-month revenue collections from backend API'}
+                : 'Month-by-month revenue collections'}
             </p>
 
             <div className="trend-controls-row">

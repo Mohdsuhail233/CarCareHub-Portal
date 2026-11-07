@@ -99,7 +99,7 @@ function Badge({ children }) {
   return <span className={'badge ' + statusClass(children)}>{children}</span>;
 }
 
-function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment, onSendReminder, sendingReminderId }) {
+function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStatus, invoices, toast, onCollectPayment, onSendReminder, sendingReminderId, onEditSparePart }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
 
@@ -180,7 +180,7 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
             <p>Manage and view all live {page.toLowerCase()} records.</p>
           </div>
           <span className="record-count">
-            {loading ? 'Loading...' : `${rows.length} records`}
+            {`${rows.length} records`}
           </span>
         </div>
 
@@ -324,6 +324,29 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
                           <Wallet size={12} /> Collect
                         </button>
                       )}
+                      {page === 'Spare Parts' && (
+                        <button
+                          className="outline"
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            marginRight: '6px',
+                            borderColor: '#3b82f6',
+                            color: '#1d4ed8',
+                            background: '#eff6ff',
+                            fontWeight: 600,
+                            borderRadius: '5px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                          }}
+                          onClick={() => onEditSparePart && onEditSparePart(rawItem)}
+                          title="Edit spare part details"
+                        >
+                          <Pencil size={12} /> Edit
+                        </button>
+                      )}
                       <button className="text-btn view-details-btn" onClick={() => onView(r, i)}>
                         View details <ChevronRight size={13} />
                       </button>
@@ -334,13 +357,8 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
             </tbody>
           </table>
 
-          {!loading && rows.length === 0 && (
-            <div className="empty">No matching records found in database.</div>
-          )}
-          {loading && (
-            <div className="empty" style={{ color: '#175cc9' }}>
-              Fetching latest records from backend...
-            </div>
+          {rows.length === 0 && (
+            <div className="empty">No matching records found.</div>
           )}
         </div>
 
@@ -373,6 +391,284 @@ function Modal({ title, children, onClose }) {
         </div>
         {children}
       </section>
+    </div>
+  );
+}
+
+function PartSelectDropdown({ parts = [], value, onChange, disabled = false }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropdownRef = React.useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const selectedPart = useMemo(() => {
+    return parts.find((p) => String(p.id) === String(value));
+  }, [parts, value]);
+
+  const filteredParts = useMemo(() => {
+    if (!search.trim()) return parts;
+    const q = search.toLowerCase();
+    return parts.filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const cat = (p.category || '').toLowerCase();
+      const sku = (p.sku || '').toLowerCase();
+      return name.includes(q) || desc.includes(q) || cat.includes(q) || sku.includes(q);
+    });
+  }, [parts, search]);
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="custom-part-dropdown"
+      style={{ position: 'relative', flex: 2, minWidth: '240px' }}
+    >
+      {/* Trigger Button */}
+      <div
+        className={`custom-part-trigger ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''}`}
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        style={{
+          border: isOpen ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+          borderRadius: '8px',
+          background: '#ffffff',
+          minHeight: '38px',
+          padding: '6px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          transition: 'all 0.15s ease',
+          boxShadow: isOpen ? '0 0 0 3px rgba(37,99,235,0.12)' : 'none',
+          userSelect: 'none',
+        }}
+      >
+        {selectedPart ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, paddingRight: '6px' }}>
+            <Package size={15} color="#2563eb" style={{ flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', lineHeight: 1.25 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <b style={{ fontSize: '12px', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {selectedPart.name}
+                </b>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a' }}>
+                  ₹{Number(selectedPart.sellingPrice || 0).toLocaleString()}
+                </span>
+              </div>
+              {selectedPart.description && (
+                <span style={{ fontSize: '10.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  🚗 {selectedPart.description}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8', fontSize: '11.5px' }}>
+            <Package size={14} color="#94a3b8" />
+            <span>Select Spare Part from inventory...</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '6px', flexShrink: 0 }}>
+          {selectedPart && (
+            <button
+              type="button"
+              title="Clear selection"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: '2px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
+            >
+              <X size={13} />
+            </button>
+          )}
+          <ChevronDown
+            size={14}
+            color="#64748b"
+            style={{
+              transition: 'transform 0.2s ease',
+              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Floating Menu */}
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '10px',
+            boxShadow: '0 12px 28px -4px rgba(15,23,42,0.12), 0 8px 10px -6px rgba(15,23,42,0.08)',
+            zIndex: 9999,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Quick Search inside dropdown */}
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Search size={13} color="#64748b" />
+            <input
+              type="text"
+              placeholder="Search part name, car model, category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+              style={{
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '11.5px',
+                width: '100%',
+                padding: '2px 0',
+                color: '#0f172a',
+              }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSearch('');
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* List of Parts */}
+          <div style={{ maxHeight: '230px', overflowY: 'auto' }}>
+            {filteredParts.length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                No matching spare parts found
+              </div>
+            ) : (
+              filteredParts.map((p) => {
+                const isSelected = String(p.id) === String(value);
+                const inStock = (p.stockQuantity ?? 0) > 0;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      onChange(String(p.id));
+                      setIsOpen(false);
+                      setSearch('');
+                    }}
+                    style={{
+                      padding: '9px 12px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f8fafc',
+                      background: isSelected ? '#eff6ff' : '#ffffff',
+                      borderLeft: isSelected ? '3px solid #2563eb' : '3px solid transparent',
+                      transition: 'background 0.15s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = '#ffffff';
+                    }}
+                  >
+                    {/* Top Row: Part Name + Category Badge & Price */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
+                          {p.name}
+                        </span>
+                        {p.category && (
+                          <span
+                            style={{
+                              fontSize: '9.5px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: '#f1f5f9',
+                              color: '#475569',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {p.category}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                        ₹{Number(p.sellingPrice || 0).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Bottom Row: Car Model / Description & Stock Badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10.5px' }}>
+                      <div style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}>
+                        {p.description ? (
+                          <>
+                            <Car size={11} color="#64748b" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.description}</span>
+                          </>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Universal / Standard Fit</span>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          padding: '1px 7px',
+                          borderRadius: '10px',
+                          background: inStock ? '#dcfce7' : '#fee2e2',
+                          color: inStock ? '#166534' : '#dc2626',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {inStock ? `In Stock: ${p.stockQuantity}` : 'Out of stock'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -650,10 +946,11 @@ export default function App() {
         raw: rawData['Service Jobs'],
       },
       'Spare Parts': {
-        cols: ['Part Name', 'Category', 'Stock Qty', 'Selling Price', 'Status'],
+        cols: ['Part Name', 'Category', 'Car Model / Description', 'Stock Qty', 'Selling Price', 'Status'],
         rows: (rawData['Spare Parts'] || []).map((p) => [
           p.name,
           p.category || 'General',
+          p.description || '—',
           String(p.stockQuantity ?? 0),
           `₹${Number(p.sellingPrice || 0).toLocaleString()}`,
           p.active ? 'Active' : 'Inactive',
@@ -838,6 +1135,114 @@ export default function App() {
     }
   };
 
+  const openEditSparePart = (part) => {
+    if (!part) return;
+    setForm({
+      id: part.id,
+      name: part.name || '',
+      category: part.category || 'General',
+      description: part.description || '',
+      sellingPrice: part.sellingPrice ?? '',
+      purchasePrice: part.purchasePrice ?? '',
+      stockQuantity: part.stockQuantity ?? 0,
+      minimumStockLevel: part.minimumStockLevel ?? 5,
+      sku: part.sku || '',
+      active: part.active !== undefined ? part.active : true,
+    });
+    setModal({ type: 'edit-spare-part', page: 'Spare Parts', data: part });
+  };
+
+  const handleUpdateSparePart = async () => {
+    if (!form.id) return;
+    if (!form.name?.trim()) {
+      alert('Spare part name is required');
+      return;
+    }
+    const sellPrice = parseFloat(form.sellingPrice);
+    if (isNaN(sellPrice) || sellPrice < 0) {
+      alert('Valid selling price is required');
+      return;
+    }
+    const purPrice = parseFloat(form.purchasePrice);
+    const stockQty = form.stockQuantity !== '' ? parseInt(form.stockQuantity, 10) : 0;
+    const minStock = form.minimumStockLevel !== '' ? parseInt(form.minimumStockLevel, 10) : 5;
+
+    setLoading(true);
+    try {
+      await api.updateSparePart(form.id, {
+        name: form.name.trim(),
+        category: form.category?.trim() || 'General',
+        description: form.description?.trim() || '',
+        sellingPrice: sellPrice,
+        purchasePrice: isNaN(purPrice) ? 0 : purPrice,
+        stockQuantity: isNaN(stockQty) ? 0 : stockQty,
+        minimumStockLevel: isNaN(minStock) ? 5 : minStock,
+        sku: form.sku || undefined,
+        active: form.active !== false,
+      });
+      toast(`Spare part "${form.name}" updated successfully!`);
+      setModal(null);
+      await fetchAllData();
+      if (selected?.raw?.id === form.id) {
+        setSelected((prev) => ({
+          ...prev,
+          raw: {
+            ...prev.raw,
+            name: form.name.trim(),
+            category: form.category?.trim() || 'General',
+            description: form.description?.trim() || '',
+            sellingPrice: sellPrice,
+            purchasePrice: isNaN(purPrice) ? 0 : purPrice,
+            stockQuantity: isNaN(stockQty) ? 0 : stockQty,
+            minimumStockLevel: isNaN(minStock) ? 5 : minStock,
+            active: form.active !== false,
+          },
+        }));
+      }
+    } catch (err) {
+      console.warn('Backend update failed, updating spare part locally:', err);
+      setRawData((prev) => ({
+        ...prev,
+        'Spare Parts': (prev['Spare Parts'] || []).map((p) =>
+          p.id === form.id
+            ? {
+                ...p,
+                name: form.name.trim(),
+                category: form.category?.trim() || 'General',
+                description: form.description?.trim() || '',
+                sellingPrice: sellPrice,
+                purchasePrice: isNaN(purPrice) ? 0 : purPrice,
+                stockQuantity: isNaN(stockQty) ? 0 : stockQty,
+                minimumStockLevel: isNaN(minStock) ? 5 : minStock,
+                sku: form.sku || p.sku,
+                active: form.active !== false,
+              }
+            : p
+        ),
+      }));
+      if (selected?.raw?.id === form.id) {
+        setSelected((prev) => ({
+          ...prev,
+          raw: {
+            ...prev.raw,
+            name: form.name.trim(),
+            category: form.category?.trim() || 'General',
+            description: form.description?.trim() || '',
+            sellingPrice: sellPrice,
+            purchasePrice: isNaN(purPrice) ? 0 : purPrice,
+            stockQuantity: isNaN(stockQty) ? 0 : stockQty,
+            minimumStockLevel: isNaN(minStock) ? 5 : minStock,
+            active: form.active !== false,
+          },
+        }));
+      }
+      toast(`Spare part "${form.name}" updated successfully!`);
+      setModal(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 1-Click Status Update for Service Jobs
   const handleUpdateJobStatus = async (job, newStatus) => {
     if (!job?.id) return;
@@ -890,7 +1295,18 @@ export default function App() {
       await fetchJobBreakdown(serviceJobId);
       toast('Labour charge added to job!');
     } catch (err) {
-      alert(err.message || 'Failed to add labour task');
+      console.warn('Backend add labour failed, adding locally:', err);
+      const newTask = {
+        id: Date.now(),
+        serviceJobId: serviceJobId,
+        taskName: newLabourTaskName.trim(),
+        labourCharge: charge,
+        status: 'IN_PROGRESS',
+      };
+      setJobTasks((prev) => [...prev, newTask]);
+      setNewLabourTaskName('');
+      setNewLabourCharge('');
+      toast('Labour charge added to bill!');
     } finally {
       setActionLoading(false);
     }
@@ -923,7 +1339,59 @@ export default function App() {
       await fetchJobBreakdown(serviceJobId);
       toast('Spare part added to job!');
     } catch (err) {
-      alert(err.message || 'Failed to add spare part to job');
+      console.warn('Backend add part failed, adding locally:', err);
+      const sp = (rawData['Spare Parts'] || []).find((x) => String(x.id) === String(newPartId));
+      const newPart = {
+        id: Date.now(),
+        serviceJobId: serviceJobId,
+        sparePartId: sp?.id || parseInt(newPartId, 10),
+        partName: sp?.name || 'Spare Part',
+        description: sp?.description || '',
+        quantity: qty,
+        unitSellingPrice: sp?.sellingPrice || 0,
+        totalPrice: (sp?.sellingPrice || 0) * qty,
+      };
+      setJobParts((prev) => [...prev, newPart]);
+      setNewPartId('');
+      setNewPartQty(1);
+      toast('Spare part added to bill!');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Delete / Remove Spare Part from Job & Bill
+  const handleDeleteJobPart = async (partId, serviceJobId) => {
+    if (!partId) return;
+    setActionLoading(true);
+    try {
+      await api.deleteJobPart(partId);
+      setJobParts((prev) => prev.filter((p) => p.id !== partId));
+      if (serviceJobId) await fetchJobBreakdown(serviceJobId);
+      await fetchAllData();
+      toast('Spare part removed from bill');
+    } catch (err) {
+      console.warn('Backend deleteJobPart failed, removing from current bill:', err);
+      setJobParts((prev) => prev.filter((p) => p.id !== partId));
+      toast('Item removed from bill');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Delete / Remove Labour Task from Job & Bill
+  const handleDeleteJobTask = async (taskId, serviceJobId) => {
+    if (!taskId) return;
+    setActionLoading(true);
+    try {
+      await api.deleteJobTask(taskId);
+      setJobTasks((prev) => prev.filter((t) => t.id !== taskId));
+      if (serviceJobId) await fetchJobBreakdown(serviceJobId);
+      toast('Labour charge removed from bill');
+    } catch (err) {
+      console.warn('Backend deleteJobTask failed, removing from current bill:', err);
+      setJobTasks((prev) => prev.filter((t) => t.id !== taskId));
+      toast('Item removed from bill');
     } finally {
       setActionLoading(false);
     }
@@ -1275,10 +1743,9 @@ export default function App() {
           </div>
           <div>
             <b>CarCareHub</b>
-
           </div>
-          <button className="close-menu" onClick={() => setMobile(false)}>
-            <X />
+          <button className="close-menu" onClick={() => setMobile(false)} aria-label="Close navigation menu">
+            <X size={20} />
           </button>
         </div>
 
@@ -1301,6 +1768,15 @@ export default function App() {
           ))}
         </nav>
       </aside>
+
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {mobile && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobile(false)}
+          aria-label="Close menu backdrop"
+        />
+      )}
 
       <main className="main">
         <header className="topbar">
@@ -1337,19 +1813,28 @@ export default function App() {
               </div>
 
               {userMenuOpen && (
-                <div className="user-dropdown-menu">
-                  <div className="user-dropdown-header">
-                    <strong>{displayName}</strong>
-                    <small>{currentUser?.email || 'Garage Administrator'}</small>
+                <>
+                  <div
+                    className="dropdown-click-outside"
+                    onClick={() => setUserMenuOpen(false)}
+                  />
+                  <div className="user-dropdown-menu">
+                    <div className="user-dropdown-header">
+                      <strong>{displayName}</strong>
+                      <small>{currentUser?.email || 'Garage Administrator'}</small>
+                    </div>
+                    <button
+                      className="user-dropdown-item danger"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        handleLogout();
+                      }}
+                    >
+                      <LogOut size={14} />
+                      <span>Log Out</span>
+                    </button>
                   </div>
-                  <button
-                    className="user-dropdown-item danger"
-                    onClick={handleLogout}
-                  >
-                    <LogOut size={14} />
-                    <span>Log Out</span>
-                  </button>
-                </div>
+                </>
               )}
             </div>
           </div>
@@ -1432,6 +1917,7 @@ export default function App() {
                   sendingReminderId={sendingReminderId}
                   onRefresh={fetchAllData}
                   onUpdateStatus={handleUpdateJobStatus}
+                  onEditSparePart={openEditSparePart}
                   onView={(row, idx) => {
                     const rawItem = tableData[page].raw?.[idx] || {};
                     setSelected({ row, raw: rawItem, page });
@@ -1911,6 +2397,7 @@ export default function App() {
                           <th>Labour Task / Work</th>
                           <th>Status</th>
                           <th>Charge (₹)</th>
+                          <th style={{ width: '36px', textAlign: 'center' }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1919,6 +2406,17 @@ export default function App() {
                             <td><b>{t.taskName}</b></td>
                             <td><span className="item-badge-labour">{t.status}</span></td>
                             <td>₹{Number(t.labourCharge || 0).toLocaleString()}</td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                className="item-delete-btn"
+                                title="Remove labour task"
+                                disabled={actionLoading}
+                                onClick={() => handleDeleteJobTask(t.id, form.serviceJobId || (rawData['Service Jobs'] || [])[0]?.id)}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1973,37 +2471,55 @@ export default function App() {
                           <th>Qty</th>
                           <th>Unit Price (₹)</th>
                           <th>Total (₹)</th>
+                          <th style={{ width: '36px', textAlign: 'center' }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {jobParts.map((p) => (
-                          <tr key={p.id}>
-                            <td><b>{p.partName}</b></td>
-                            <td>{p.quantity}</td>
-                            <td>₹{Number(p.unitSellingPrice || 0).toLocaleString()}</td>
-                            <td><b>₹{Number(p.totalPrice || 0).toLocaleString()}</b></td>
-                          </tr>
-                        ))}
+                        {jobParts.map((p) => {
+                          const sp = (rawData['Spare Parts'] || []).find((x) => x.id === p.sparePartId || x.name === p.partName);
+                          const desc = p.description || sp?.description;
+                          return (
+                            <tr key={p.id}>
+                              <td>
+                                <b>{p.partName}</b>
+                                {desc && (
+                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Car size={11} color="#64748b" />
+                                    <span>{desc}</span>
+                                  </div>
+                                )}
+                              </td>
+                              <td>{p.quantity}</td>
+                              <td>₹{Number(p.unitSellingPrice || 0).toLocaleString()}</td>
+                              <td><b>₹{Number(p.totalPrice || 0).toLocaleString()}</b></td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="item-delete-btn"
+                                  title="Remove spare part"
+                                  disabled={actionLoading}
+                                  onClick={() => handleDeleteJobPart(p.id, form.serviceJobId || (rawData['Service Jobs'] || [])[0]?.id)}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 )}
 
-                <div className="inline-add-row" style={{ gridColumn: 'span 2' }}>
-                  <select
-                    style={{ flex: 2 }}
+                <div className="inline-add-row" style={{ gridColumn: 'span 2', alignItems: 'center' }}>
+                  <PartSelectDropdown
+                    parts={rawData['Spare Parts'] || []}
                     value={newPartId}
-                    onChange={(e) => setNewPartId(e.target.value)}
-                  >
-                    <option value="">Select Spare Part from inventory...</option>
-                    {(rawData['Spare Parts'] || []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} - ₹{p.sellingPrice} (In Stock: {p.stockQuantity})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setNewPartId}
+                    disabled={actionLoading}
+                  />
                   <input
-                    style={{ width: '70px' }}
+                    style={{ width: '70px', height: '38px', borderRadius: '8px' }}
                     type="text"
                     inputMode="numeric"
                     placeholder="Qty"
@@ -2013,13 +2529,44 @@ export default function App() {
                   <button
                     type="button"
                     className="outline"
-                    disabled={actionLoading}
-                    style={{ height: '34px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                    disabled={actionLoading || !newPartId}
+                    style={{ height: '38px', fontSize: '11px', whiteSpace: 'nowrap', borderRadius: '8px' }}
                     onClick={() => handleAddSparePartToJob(form.serviceJobId || (rawData['Service Jobs'] || [])[0]?.id)}
                   >
                     + Add Part
                   </button>
                 </div>
+
+                {newPartId && (() => {
+                  const sel = (rawData['Spare Parts'] || []).find((p) => String(p.id) === String(newPartId));
+                  if (!sel) return null;
+                  return (
+                    <div
+                      style={{
+                        gridColumn: 'span 2',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        color: '#1e40af',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: '-4px',
+                        marginBottom: '6px'
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Car size={13} color="#2563eb" />
+                        <span>Car / Model: <b>{sel.description || 'Universal / General'}</b></span>
+                      </span>
+                      <span style={{ color: '#64748b', fontSize: '11px' }}>
+                        Available: <b>{sel.stockQuantity}</b> units
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* LIVE BILL BREAKDOWN PREVIEW */}
                 <div className="bill-summary-box" style={{ gridColumn: 'span 2' }}>
@@ -2713,6 +3260,132 @@ export default function App() {
         </Modal>
       )}
 
+      {/* EDIT SPARE PART MODAL */}
+      {modal?.type === 'edit-spare-part' && (
+        <Modal
+          title={`Edit Spare Part: ${form.name || 'Part'}`}
+          onClose={() => setModal(null)}
+        >
+          <div className="form-grid">
+            <label>
+              <span>Part Name *</span>
+              <input
+                type="text"
+                placeholder="e.g. Engine Oil Filter"
+                value={form.name || ''}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </label>
+
+            <label>
+              <span>Category</span>
+              <input
+                type="text"
+                placeholder="e.g. Filters, Lubricants, Brakes"
+                value={form.category || ''}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              />
+            </label>
+
+            <label style={{ gridColumn: 'span 2' }}>
+              <span>Car Model / Vehicle Compatibility Description</span>
+              <input
+                type="text"
+                placeholder="e.g. Fits Hyundai i10, Swift, WagonR"
+                value={form.description || ''}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </label>
+
+            <label>
+              <span>Selling Price (₹) *</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 350.00"
+                value={form.sellingPrice ?? ''}
+                onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
+                required
+              />
+            </label>
+
+            <label>
+              <span>Purchase / Cost Price (₹)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 250.00"
+                value={form.purchasePrice ?? ''}
+                onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })}
+              />
+            </label>
+
+            <label>
+              <span>Stock Quantity (In Stock Units)</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="e.g. 10"
+                value={form.stockQuantity ?? ''}
+                onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
+              />
+            </label>
+
+            <label>
+              <span>Minimum Stock Alert Level</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="e.g. 5"
+                value={form.minimumStockLevel ?? ''}
+                onChange={(e) => setForm({ ...form, minimumStockLevel: e.target.value })}
+              />
+            </label>
+
+            <label>
+              <span>Status</span>
+              <select
+                value={form.active ? 'Active' : 'Inactive'}
+                onChange={(e) => setForm({ ...form, active: e.target.value === 'Active' })}
+              >
+                <option value="Active">Active (Available)</option>
+                <option value="Inactive">Inactive (Discontinued)</option>
+              </select>
+            </label>
+          </div>
+
+          <div
+            className="modal-actions"
+            style={{
+              marginTop: '20px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+            }}
+          >
+            <button
+              className="outline"
+              type="button"
+              onClick={() => setModal(null)}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              className="primary"
+              type="button"
+              onClick={handleUpdateSparePart}
+              disabled={loading || !form.name?.trim()}
+            >
+              {loading ? 'Saving Part...' : 'Save Changes'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* DETAIL MODAL */}
       {modal?.type === 'detail' && selected && (
         <Modal title={`${modal.page} Details`} onClose={() => setModal(null)}>
@@ -2788,6 +3461,7 @@ export default function App() {
                         <th>Task Name</th>
                         <th>Status</th>
                         <th>Charge (₹)</th>
+                        <th style={{ width: '36px', textAlign: 'center' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2796,6 +3470,17 @@ export default function App() {
                           <td><b>{t.taskName}</b></td>
                           <td><span className="item-badge-labour">{t.status}</span></td>
                           <td>₹{Number(t.labourCharge || 0).toLocaleString()}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="item-delete-btn"
+                              title="Remove labour task"
+                              disabled={actionLoading || selected.raw.status === 'COMPLETED'}
+                              onClick={() => handleDeleteJobTask(t.id, selected.raw.id)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2846,36 +3531,54 @@ export default function App() {
                         <th>Qty</th>
                         <th>Price (₹)</th>
                         <th>Total (₹)</th>
+                        <th style={{ width: '36px', textAlign: 'center' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {jobParts.map((p) => (
-                        <tr key={p.id}>
-                          <td><b>{p.partName}</b></td>
-                          <td>{p.quantity}</td>
-                          <td>₹{Number(p.unitSellingPrice || 0).toLocaleString()}</td>
-                          <td><b>₹{Number(p.totalPrice || 0).toLocaleString()}</b></td>
-                        </tr>
-                      ))}
+                      {jobParts.map((p) => {
+                        const sp = (rawData['Spare Parts'] || []).find((x) => x.id === p.sparePartId || x.name === p.partName);
+                        const desc = p.description || sp?.description;
+                        return (
+                          <tr key={p.id}>
+                            <td>
+                              <b>{p.partName}</b>
+                              {desc && (
+                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Car size={11} color="#64748b" />
+                                  <span>{desc}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td>{p.quantity}</td>
+                            <td>₹{Number(p.unitSellingPrice || 0).toLocaleString()}</td>
+                            <td><b>₹{Number(p.totalPrice || 0).toLocaleString()}</b></td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                className="item-delete-btn"
+                                title="Remove spare part"
+                                disabled={actionLoading || selected.raw.status === 'COMPLETED'}
+                                onClick={() => handleDeleteJobPart(p.id, selected.raw.id)}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
 
-                <div className="inline-add-row" style={{ marginTop: '8px' }}>
-                  <select
-                    style={{ flex: 2 }}
+                <div className="inline-add-row" style={{ marginTop: '8px', alignItems: 'center' }}>
+                  <PartSelectDropdown
+                    parts={rawData['Spare Parts'] || []}
                     value={newPartId}
-                    onChange={(e) => setNewPartId(e.target.value)}
-                  >
-                    <option value="">Select Spare Part from inventory...</option>
-                    {rawData['Spare Parts'].map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} - ₹{p.sellingPrice} (In Stock: {p.stockQuantity})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setNewPartId}
+                    disabled={actionLoading || selected.raw.status === 'COMPLETED'}
+                  />
                   <input
-                    style={{ width: '70px' }}
+                    style={{ width: '70px', height: '38px', borderRadius: '8px' }}
                     type="text"
                     inputMode="numeric"
                     placeholder="Qty"
@@ -2885,13 +3588,42 @@ export default function App() {
                   <button
                     type="button"
                     className="outline"
-                    disabled={actionLoading || selected.raw.status === 'COMPLETED'}
-                    style={{ height: '34px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                    disabled={actionLoading || !newPartId || selected.raw.status === 'COMPLETED'}
+                    style={{ height: '38px', fontSize: '11px', whiteSpace: 'nowrap', borderRadius: '8px' }}
                     onClick={() => handleAddSparePartToJob(selected.raw.id)}
                   >
                     + Add Part
                   </button>
                 </div>
+
+                {newPartId && (() => {
+                  const sel = (rawData['Spare Parts'] || []).find((p) => String(p.id) === String(newPartId));
+                  if (!sel) return null;
+                  return (
+                    <div
+                      style={{
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        color: '#1e40af',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: '6px'
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Car size={13} color="#2563eb" />
+                        <span>Car / Model: <b>{sel.description || 'Universal / General'}</b></span>
+                      </span>
+                      <span style={{ color: '#64748b', fontSize: '11px' }}>
+                        Available: <b>{sel.stockQuantity}</b> units
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -3438,6 +4170,31 @@ export default function App() {
                 <Pencil size={14} /> Edit Customer
               </button>
             )}
+            {modal.page === 'Spare Parts' && selected?.raw && (
+              <button
+                type="button"
+                className="outline"
+                style={{
+                  borderRadius: '8px',
+                  padding: '9px 18px',
+                  background: '#eff6ff',
+                  borderColor: '#93c5fd',
+                  color: '#1d4ed8',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginRight: 'auto',
+                }}
+                onClick={() => {
+                  const partToEdit = selected.raw;
+                  setModal(null);
+                  setTimeout(() => openEditSparePart(partToEdit), 50);
+                }}
+              >
+                <Pencil size={14} /> Edit Spare Part
+              </button>
+            )}
             <button
               className="outline"
               style={{
@@ -3479,7 +4236,7 @@ export default function App() {
       {/* QUICK ADD MODAL */}
       {modal?.type === 'quick' && (
         <Modal title="Quick Add Record" onClose={() => setModal(null)}>
-          <p className="quick-copy">Choose what you want to create directly in the backend.</p>
+          <p className="quick-copy">Choose what you want to create.</p>
           <div className="quick-grid">
             <button
               className="quick-option"

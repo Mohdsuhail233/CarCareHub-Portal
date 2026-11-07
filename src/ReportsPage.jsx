@@ -321,7 +321,7 @@ export default function ReportsPage({ summary, rawData, onRefresh }) {
             <p>
               {viewMode === 'DAILY'
                 ? `Day-by-day revenue collected across ${timeframe === '7d' ? 'last 7 days' : 'last 30 days'}`
-                : 'Month-by-month revenue collections from backend API'}
+                : 'Month-by-month revenue collections'}
             </p>
 
             {/* Daily vs Monthly Mode Switcher + Timeframe Filters */}
