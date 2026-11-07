@@ -1802,7 +1802,7 @@ export default function App() {
               <span className="modern-bell-badge" />
             </button>
 
-            <div className="modern-user-profile-wrapper" style={{ position: 'relative' }}>
+            <div className="modern-user-profile-wrapper" style={{ position: 'relative', zIndex: userMenuOpen ? 1000 : 10 }}>
               <div
                 className="modern-user-profile"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -1827,8 +1827,10 @@ export default function App() {
                       <small>{currentUser?.email || 'Garage Administrator'}</small>
                     </div>
                     <button
+                      type="button"
                       className="user-dropdown-item danger"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setUserMenuOpen(false);
                         handleLogout();
                       }}
