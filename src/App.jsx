@@ -1497,7 +1497,7 @@ export default function App() {
           odometerReading: currentOdo,
           expectedDeliveryDate: form.expectedDeliveryDate || new Date().toISOString().slice(0, 10),
         });
-        toast('Service Job created & Vehicle Odometer updated successfully!');
+        toast(currentOdo ? 'Service Job created & Vehicle Odometer updated successfully!' : 'Service Job created successfully!');
       } else if (p === 'Spare Parts') {
         const stockQty = form.stockQuantity ? Math.max(0, parseInt(form.stockQuantity, 10)) : 0;
         const autoSku = (form.name || 'PART').replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
@@ -2088,13 +2088,13 @@ export default function App() {
                   />
                 </label>
                 <label>
-                  Current Odometer (KM)
+                  Current Odometer (KM) (Optional)
                   <input
                     type="text"
                     inputMode="numeric"
                     value={form.odometerReading !== undefined ? form.odometerReading : ''}
                     onChange={(e) => setForm({ ...form, odometerReading: e.target.value.replace(/[^0-9]/g, '') })}
-                    placeholder="e.g. 42000"
+                    placeholder="e.g. 42000 (optional)"
                   />
                 </label>
               </>
@@ -2239,15 +2239,14 @@ export default function App() {
 
                   {/* Current Service Odometer Input */}
                   <label style={{ gridColumn: 'span 1' }}>
-                    Current Odometer (KM) *
+                    Current Odometer (KM) (Optional)
                     <input
                       type="text"
                       inputMode="numeric"
                       value={form.odometerReading !== undefined ? form.odometerReading : (prevOdo > 0 ? String(prevOdo) : '')}
                       onChange={(e) => setForm({ ...form, odometerReading: e.target.value.replace(/[^0-9]/g, '') })}
-                      placeholder={prevOdo > 0 ? `e.g. ${prevOdo + 500}` : 'e.g. 25000'}
-                      title="Enter current odometer reading to record service mileage and update vehicle record"
-                      required
+                      placeholder={prevOdo > 0 ? `e.g. ${prevOdo + 500} (optional)` : 'e.g. 25000 (optional)'}
+                      title="Enter current odometer reading to record service mileage and update vehicle record (Optional)"
                     />
                   </label>
 
