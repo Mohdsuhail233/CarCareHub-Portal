@@ -182,6 +182,10 @@ export const api = {
     method: 'DELETE',
   }),
 
-  // Notifications
+  // Notifications & Custom WhatsApp Messages
   getNotifications: () => request('/notifications'),
+  sendWhatsAppCustomMessage: (phoneNumber, message) => request('/whatsapp/send', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber, message }),
+  }),
 };

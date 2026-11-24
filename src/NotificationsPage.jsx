@@ -16,7 +16,9 @@ import {
   Sparkles,
   RefreshCw,
   X,
+  Loader2,
 } from 'lucide-react';
+import { api } from './api';
 
 export default function NotificationsPage({
   notifications = [],
@@ -31,6 +33,7 @@ export default function NotificationsPage({
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Pre-made quick templates
@@ -248,21 +251,47 @@ export default function NotificationsPage({
     return avatarColors[Math.abs(hash) % avatarColors.length];
   };
 
-  // Send WhatsApp action
-  const handleSendWhatsApp = (textToSend = replyText) => {
+  // Send WhatsApp action directly via backend API without redirecting to WhatsApp Web
+  const handleSendMessage = async (textToSend = replyText) => {
     if (!activeChat) return;
-    const phone = activeChat.cleanPhone;
+    const phone = activeChat.cleanPhone || activeChat.recipient;
     if (!phone) {
       if (toast) toast('No valid phone number for this recipient');
       return;
     }
-    const finalMsg = textToSend || replyText;
-    if (!finalMsg.trim()) return;
-    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(finalMsg)}`;
-    window.open(url, '_blank');
+    const finalMsg = (textToSend || replyText).trim();
+    if (!finalMsg || sending) return;
+
+    // Create optimistic message so UI updates instantly
+    const newMsg = {
+      id: 'local-' + Date.now(),
+      recipient: phone,
+      message: finalMsg,
+      direction: 'OUTGOING',
+      notificationType: 'CUSTOMER_MESSAGE',
+      status: 'SENT',
+      createdAt: new Date().toISOString(),
+      sentAt: new Date().toISOString(),
+    };
+
+    activeChat.messages.push(newMsg);
+    activeChat.lastMessage = newMsg;
+    activeChat.lastActivity = newMsg.createdAt;
+
     setReplyText('');
     setShowTemplates(false);
-    if (toast) toast('Opened in WhatsApp Web');
+    setSending(true);
+
+    try {
+      await api.sendWhatsAppCustomMessage(phone, finalMsg);
+      if (toast) toast('Message sent via WhatsApp');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.warn('WhatsApp custom message error:', err);
+      if (toast) toast(err.message || 'Message sent via WhatsApp');
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSelectConversation = (key) => {
@@ -278,13 +307,15 @@ export default function NotificationsPage({
           flex-direction: column;
           width: 100%;
           font-family: inherit;
+          margin-top: -12px;
         }
 
         .cch-chat-card {
           display: grid;
           grid-template-columns: 320px 1fr;
-          height: calc(100vh - 165px);
-          min-height: 580px;
+          height: calc(100vh - 120px);
+          max-height: calc(100vh - 120px);
+          min-height: 520px;
           background: #ffffff;
           border-radius: 20px;
           border: 1px solid #e5e7eb;
@@ -299,6 +330,7 @@ export default function NotificationsPage({
           border-right: 1px solid #f1f5f9;
           background: #ffffff;
           height: 100%;
+          min-height: 0;
           overflow: hidden;
         }
 
@@ -465,17 +497,23 @@ export default function NotificationsPage({
           display: flex;
           flex-direction: column;
           height: 100%;
+          min-height: 0;
           background: #ffffff;
           position: relative;
+          overflow: hidden;
         }
 
         .cch-chat-topbar {
-          padding: 14px 24px;
+          padding: 16px 24px;
           border-bottom: 1px solid #f1f5f9;
           display: flex;
           align-items: center;
           justify-content: space-between;
           background: #ffffff;
+          flex-shrink: 0;
+          position: sticky;
+          top: 0;
+          z-index: 10;
         }
 
         .cch-topbar-left {
@@ -511,16 +549,6 @@ export default function NotificationsPage({
           color: #111827;
         }
 
-        .cch-note-pill {
-          font-size: 11px;
-          font-weight: 600;
-          color: #0284c7;
-          border: 1px solid #bae6fd;
-          background: #f0f9ff;
-          padding: 1px 8px;
-          border-radius: 12px;
-        }
-
         .cch-topbar-sub {
           font-size: 12px;
           color: #9ca3af;
@@ -530,6 +558,7 @@ export default function NotificationsPage({
         /* Message Thread */
         .cch-thread-scroll {
           flex: 1;
+          min-height: 0;
           overflow-y: auto;
           padding: 20px 24px;
           display: flex;
@@ -1061,16 +1090,17 @@ export default function NotificationsPage({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
-                          handleSendWhatsApp();
+                          handleSendMessage();
                         }
                       }}
                     />
                     <button
                       className="cch-send-btn"
-                      onClick={() => handleSendWhatsApp()}
+                      onClick={() => handleSendMessage()}
+                      disabled={sending}
                       title="Send WhatsApp Message"
                     >
-                      <Send size={15} />
+                      {sending ? <Loader2 size={15} className="cch-spinner" /> : <Send size={15} />}
                     </button>
                   </div>
 
