@@ -14,9 +14,6 @@ import {
   CheckCheck,
   Clock,
   Sparkles,
-  ExternalLink,
-  Table as TableIcon,
-  MessageCircle,
   RefreshCw,
   X,
 } from 'lucide-react';
@@ -29,7 +26,6 @@ export default function NotificationsPage({
   onRefresh,
   toast,
 }) {
-  const [activeView, setActiveView] = useState('chat'); // 'chat' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState(null);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
@@ -81,9 +77,24 @@ export default function NotificationsPage({
     return map;
   }, [vehicles]);
 
+  // Helper to extract customer name from automated template text if present
+  const extractNameFromMsg = (msg) => {
+    if (!msg) return null;
+    if (msg.startsWith('Hello ') && msg.includes(',')) {
+      return msg.slice(6, msg.indexOf(',')).trim();
+    }
+    if (msg.startsWith('Service reminder sent to ') && msg.includes(' for ')) {
+      const start = 'Service reminder sent to '.length;
+      const end = msg.indexOf(' for ');
+      return msg.slice(start, end).trim();
+    }
+    return null;
+  };
+
   const normalizePhone = (num) => {
     if (!num) return '';
-    return String(num).replace(/\D/g, '');
+    const digits = String(num).replace(/\D/g, '');
+    return digits.length >= 10 ? digits.slice(-10) : digits;
   };
 
   // Group notifications into conversations by recipient
@@ -95,17 +106,23 @@ export default function NotificationsPage({
       const cleanPhone = normalizePhone(rawRec);
       const key = cleanPhone || rawRec;
 
-      if (!groups[key]) {
-        const matchedCust =
-          (n.referenceId && customerById[n.referenceId]) ||
-          customerByPhone[cleanPhone] ||
-          (cleanPhone.length >= 10 ? customerByPhone[cleanPhone.slice(-10)] : null);
+      const extractedName = extractNameFromMsg(n.message);
+      const matchedCust =
+        customerByPhone[cleanPhone] ||
+        (cleanPhone.length >= 10 ? customerByPhone[cleanPhone.slice(-10)] : null);
 
-        const displayName =
-          n.customerName ||
+      if (!groups[key]) {
+        // Name resolution priority:
+        // 1. Matched customer fullName in DB
+        // 2. Extracted name from message body (e.g. "Hello Nizamul haq,")
+        // 3. n.customerName (if valid and not a generic subject)
+        // 4. Formatted phone number
+        const resolvedName =
           matchedCust?.fullName ||
           matchedCust?.name ||
-          (cleanPhone ? `+${cleanPhone}` : rawRec);
+          extractedName ||
+          (n.customerName && !n.customerName.startsWith('WhatsApp from') && !n.customerName.startsWith('+') ? n.customerName : null) ||
+          (cleanPhone ? `+91 ${cleanPhone}` : rawRec);
 
         const custVehicles = matchedCust?.id ? vehiclesByCustomer[matchedCust.id] || [] : [];
 
@@ -113,13 +130,21 @@ export default function NotificationsPage({
           key,
           recipient: rawRec,
           cleanPhone,
-          displayName,
+          displayName: resolvedName,
           customer: matchedCust,
           vehicles: custVehicles,
           messages: [],
           incomingCount: 0,
           lastActivity: n.createdAt || n.sentAt || '',
         };
+      } else {
+        // Upgrade display name if we now find a more accurate customer/extracted name
+        if (matchedCust && (!groups[key].customer || groups[key].displayName.startsWith('+'))) {
+          groups[key].customer = matchedCust;
+          groups[key].displayName = matchedCust.fullName || matchedCust.name;
+        } else if (extractedName && groups[key].displayName.startsWith('+')) {
+          groups[key].displayName = extractedName;
+        }
       }
 
       groups[key].messages.push(n);
@@ -776,104 +801,43 @@ export default function NotificationsPage({
         }
       `}</style>
 
-      {/* Top Controls Bar */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '10px',
-          marginBottom: '14px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              padding: '3px',
-              backgroundColor: '#f1f5f9',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            <button
-              onClick={() => setActiveView('chat')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                fontSize: '12.5px',
-                fontWeight: '600',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: activeView === 'chat' ? '#ffffff' : 'transparent',
-                color: activeView === 'chat' ? '#0f172a' : '#64748b',
-                boxShadow: activeView === 'chat' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-              }}
-            >
-              <MessageCircle size={14} /> Chats
-            </button>
-            <button
-              onClick={() => setActiveView('table')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                fontSize: '12.5px',
-                fontWeight: '600',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: activeView === 'table' ? '#ffffff' : 'transparent',
-                color: activeView === 'table' ? '#0f172a' : '#64748b',
-                boxShadow: activeView === 'table' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-              }}
-            >
-              <TableIcon size={14} /> Audit Logs
-            </button>
-          </div>
-        </div>
-
-        {onRefresh && (
-          <button
-            className="outline"
-            onClick={onRefresh}
-            disabled={loading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              fontSize: '12px',
-            }}
-          >
-            <RefreshCw size={13} className={loading ? 'cch-spinner' : ''} />
-            Refresh
-          </button>
-        )}
-      </div>
-
       {/* Main Container */}
-      {activeView === 'chat' ? (
-        <div className="cch-chat-card">
-          {/* ================= LEFT SIDEBAR: CHATS LIST ================= */}
-          <div className="cch-chats-sidebar">
-            <div className="cch-sidebar-header">
-              <div className="cch-sidebar-title">Chats</div>
-              <div className="cch-search-box">
-                <Search size={15} className="cch-search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search Contact"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+      <div className="cch-chat-card">
+        {/* ================= LEFT SIDEBAR: CHATS LIST ================= */}
+        <div className="cch-chats-sidebar">
+          <div className="cch-sidebar-header">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div className="cch-sidebar-title" style={{ margin: 0 }}>Chats</div>
+              {onRefresh && (
+                <button
+                  onClick={onRefresh}
+                  disabled={loading}
+                  title="Refresh messages"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    color: '#9ca3af',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderRadius: '6px',
+                  }}
+                >
+                  <RefreshCw size={15} className={loading ? 'cch-spinner' : ''} />
+                </button>
+              )}
             </div>
+            <div className="cch-search-box">
+              <Search size={15} className="cch-search-icon" />
+              <input
+                type="text"
+                placeholder="Search Contact"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
 
             <div className="cch-conversations-scroll">
               {/* Category 1: Favourites */}
@@ -997,9 +961,6 @@ export default function NotificationsPage({
                   <div className="cch-topbar-details">
                     <div className="cch-topbar-title-row">
                       <span className="cch-topbar-name">{activeChat.displayName}</span>
-                      <span className="cch-note-pill">
-                        {activeChat.customer ? `Customer #${activeChat.customer.id}` : '1 Note'}
-                      </span>
                     </div>
                     <span className="cch-topbar-sub">
                       {activeChat.recipient}
@@ -1007,24 +968,6 @@ export default function NotificationsPage({
                     </span>
                   </div>
                 </div>
-
-                <button
-                  className="outline"
-                  onClick={() => handleSendWhatsApp()}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '12px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    color: '#0d9488',
-                    borderColor: '#99f6e4',
-                  }}
-                >
-                  <ExternalLink size={13} />
-                  WhatsApp Web
-                </button>
               </div>
 
               {/* Message Thread */}
@@ -1198,63 +1141,6 @@ export default function NotificationsPage({
             </div>
           )}
         </div>
-      ) : (
-        /* ================= TABLE AUDIT VIEW ================= */
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: '600', color: '#64748b' }}>ID</th>
-                  <th style={{ padding: '12px 16px', fontWeight: '600', color: '#64748b' }}>Direction</th>
-                  <th style={{ padding: '12px 16px', fontWeight: '600', color: '#64748b' }}>Recipient</th>
-                  <th style={{ padding: '12px 16px', fontWeight: '600', color: '#64748b' }}>Message</th>
-                  <th style={{ padding: '12px 16px', fontWeight: '600', color: '#64748b' }}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {notifications.map((n) => (
-                  <tr key={n.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: '600' }}>#{n.id}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span
-                        style={{
-                          padding: '2px 8px',
-                          borderRadius: '6px',
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          backgroundColor:
-                            n.direction === 'INCOMING' || n.notificationType === 'CUSTOMER_MESSAGE'
-                              ? '#dcfce7'
-                              : '#f1f5f9',
-                          color:
-                            n.direction === 'INCOMING' || n.notificationType === 'CUSTOMER_MESSAGE'
-                              ? '#15803d'
-                              : '#475569',
-                        }}
-                      >
-                        {n.direction || (n.notificationType === 'CUSTOMER_MESSAGE' ? 'INCOMING' : 'OUTGOING')}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>{n.recipient}</td>
-                    <td style={{ padding: '12px 16px' }}>{n.message || n.subject}</td>
-                    <td style={{ padding: '12px 16px', color: '#64748b' }}>
-                      {n.createdAt ? n.createdAt.slice(0, 10) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
