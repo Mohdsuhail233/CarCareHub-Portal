@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Search,
   Send,
+  Plus,
   Paperclip,
   Smile,
   FileText,
@@ -177,10 +178,10 @@ export default function NotificationsPage({
     return list;
   }, [notifications, customerByPhone, customerById, vehiclesByCustomer]);
 
-  // Split into Favourites and Direct Messages
-  const { favourites, directMessages } = useMemo(() => {
+  // Filtered conversations list (Unified without Favourites/Direct Messages splitting)
+  const filteredConversations = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    const filtered = conversations.filter((c) => {
+    return conversations.filter((c) => {
       if (!q) return true;
       return (
         c.displayName.toLowerCase().includes(q) ||
@@ -188,19 +189,6 @@ export default function NotificationsPage({
         c.messages.some((m) => (m.message || '').toLowerCase().includes(q))
       );
     });
-
-    // Top 3 active or customers with incoming count become Favourites
-    const favs = [];
-    const directs = [];
-    filtered.forEach((c, idx) => {
-      if (c.incomingCount > 0 || idx < 3) {
-        favs.push(c);
-      } else {
-        directs.push(c);
-      }
-    });
-
-    return { favourites: favs, directMessages: directs };
   }, [conversations, searchQuery]);
 
   // Active chat
@@ -209,8 +197,8 @@ export default function NotificationsPage({
       const found = conversations.find((c) => c.key === selectedKey);
       if (found) return found;
     }
-    return conversations[0] || null;
-  }, [selectedKey, conversations]);
+    return filteredConversations[0] || conversations[0] || null;
+  }, [selectedKey, conversations, filteredConversations]);
 
   // Scroll to bottom when active chat changes
   useEffect(() => {
@@ -667,37 +655,74 @@ export default function NotificationsPage({
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
         }
 
-        .cch-composer-input-row {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
+        /* WhatsApp Web Style Composer Pill */
+        .cch-composer-wrap {
+          padding: 12px 20px 16px 20px;
+          background: #ffffff;
+          flex-shrink: 0;
+          position: sticky;
+          bottom: 0;
+          z-index: 5;
         }
 
-        .cch-composer-textarea {
+        .cch-composer-pill {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 30px;
+          padding: 6px 8px 6px 14px;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .cch-composer-pill:focus-within {
+          border-color: #cbd5e1;
+          background: #ffffff;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .cch-pill-icon-btn {
+          border: none;
+          background: none;
+          cursor: pointer;
+          color: #64748b;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: color 0.15s, background-color 0.15s;
+          flex-shrink: 0;
+        }
+
+        .cch-pill-icon-btn:hover {
+          color: #0f172a;
+          background: #f1f5f9;
+        }
+
+        .cch-pill-input {
           flex: 1;
           border: none;
           outline: none;
-          resize: none;
-          font-size: 13.5px;
-          color: #1f2937;
           background: transparent;
-          min-height: 38px;
-          max-height: 100px;
-          line-height: 1.4;
-          padding: 2px 0;
+          font-size: 14px;
+          color: #1e293b;
+          padding: 6px 4px;
           font-family: inherit;
         }
 
-        .cch-composer-textarea::placeholder {
-          color: #9ca3af;
+        .cch-pill-input::placeholder {
+          color: #94a3b8;
         }
 
-        .cch-send-btn {
-          width: 34px;
-          height: 34px;
-          border-radius: 8px;
+        /* Black Round Send Button */
+        .cch-send-btn-black {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
           border: none;
-          background: #14b8a6;
+          background: #000000;
           color: #ffffff;
           display: flex;
           align-items: center;
@@ -707,54 +732,45 @@ export default function NotificationsPage({
           flex-shrink: 0;
         }
 
-        .cch-send-btn:hover {
-          background: #0d9488;
+        .cch-send-btn-black:hover {
+          background: #1e293b;
         }
 
-        .cch-send-btn:active {
-          transform: scale(0.95);
+        .cch-send-btn-black:active {
+          transform: scale(0.92);
         }
 
-        .cch-composer-footer {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-top: 10px;
-          padding-top: 8px;
-          border-top: 1px solid #f8fafc;
+        /* Ultra-thin 5px sleek scrollbar matching modern web apps */
+        .cch-conversations-scroll::-webkit-scrollbar,
+        .cch-thread-scroll::-webkit-scrollbar,
+        .cch-templates-popup::-webkit-scrollbar {
+          width: 5px;
         }
 
-        .cch-action-buttons {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          overflow-x: auto;
+        .cch-conversations-scroll::-webkit-scrollbar-track,
+        .cch-thread-scroll::-webkit-scrollbar-track,
+        .cch-templates-popup::-webkit-scrollbar-track {
+          background: transparent;
         }
 
-        .cch-action-pill {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 12px;
-          color: #6b7280;
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 2px 4px;
-          border-radius: 6px;
-          transition: color 0.15s;
-          white-space: nowrap;
+        .cch-conversations-scroll::-webkit-scrollbar-thumb,
+        .cch-thread-scroll::-webkit-scrollbar-thumb,
+        .cch-templates-popup::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
         }
 
-        .cch-action-pill:hover {
-          color: #111827;
+        .cch-conversations-scroll::-webkit-scrollbar-thumb:hover,
+        .cch-thread-scroll::-webkit-scrollbar-thumb:hover,
+        .cch-templates-popup::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
 
-        .cch-char-count {
-          font-size: 11px;
-          color: #9ca3af;
-          font-weight: 500;
-          flex-shrink: 0;
+        .cch-conversations-scroll,
+        .cch-thread-scroll,
+        .cch-templates-popup {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
         }
 
         /* Templates popup */
@@ -876,95 +892,45 @@ export default function NotificationsPage({
           </div>
 
             <div className="cch-conversations-scroll">
-              {/* Category 1: Favourites */}
-              {favourites.length > 0 && (
-                <>
-                  <div className="cch-category-label">Favourites</div>
-                  {favourites.map((c) => {
-                    const isSelected = activeChat && activeChat.key === c.key;
-                    const initials = getInitials(c.displayName);
-                    const lastMsg = c.lastMessage;
-                    const timeStr = formatShortTime(c.lastActivity);
+              {filteredConversations.map((c) => {
+                const isSelected = activeChat && activeChat.key === c.key;
+                const initials = getInitials(c.displayName);
+                const lastMsg = c.lastMessage;
+                const timeStr = formatShortTime(c.lastActivity);
 
-                    return (
-                      <div
-                        key={c.key}
-                        className={`cch-contact-item ${isSelected ? 'active' : ''}`}
-                        onClick={() => handleSelectConversation(c.key)}
-                      >
-                        <div
-                          className="cch-avatar-wrap"
-                          style={{ backgroundColor: getAvatarBg(c.displayName) }}
-                        >
-                          {initials}
-                          <span className="cch-online-dot" />
-                        </div>
+                return (
+                  <div
+                    key={c.key}
+                    className={`cch-contact-item ${isSelected ? 'active' : ''}`}
+                    onClick={() => handleSelectConversation(c.key)}
+                  >
+                    <div
+                      className="cch-avatar-wrap"
+                      style={{ backgroundColor: getAvatarBg(c.displayName) }}
+                    >
+                      {initials}
+                      <span className="cch-online-dot" />
+                    </div>
 
-                        <div className="cch-contact-info">
-                          <div className="cch-contact-name-row">
-                            <span className="cch-contact-name">{c.displayName}</span>
-                            <span className="cch-contact-time">{timeStr}</span>
-                          </div>
-                          <div className="cch-contact-msg-row">
-                            <span className="cch-contact-snippet">
-                              {lastMsg?.message || lastMsg?.subject || 'No messages yet'}
-                            </span>
-                            {c.incomingCount > 0 && (
-                              <span className="cch-unread-badge">{c.incomingCount}</span>
-                            )}
-                          </div>
-                        </div>
+                    <div className="cch-contact-info">
+                      <div className="cch-contact-name-row">
+                        <span className="cch-contact-name">{c.displayName}</span>
+                        <span className="cch-contact-time">{timeStr}</span>
                       </div>
-                    );
-                  })}
-                </>
-              )}
-
-              {/* Category 2: Direct Messages */}
-              {directMessages.length > 0 && (
-                <>
-                  <div className="cch-category-label">Direct Messages</div>
-                  {directMessages.map((c) => {
-                    const isSelected = activeChat && activeChat.key === c.key;
-                    const initials = getInitials(c.displayName);
-                    const lastMsg = c.lastMessage;
-                    const timeStr = formatShortTime(c.lastActivity);
-
-                    return (
-                      <div
-                        key={c.key}
-                        className={`cch-contact-item ${isSelected ? 'active' : ''}`}
-                        onClick={() => handleSelectConversation(c.key)}
-                      >
-                        <div
-                          className="cch-avatar-wrap"
-                          style={{ backgroundColor: getAvatarBg(c.displayName) }}
-                        >
-                          {initials}
-                          <span className="cch-online-dot" />
-                        </div>
-
-                        <div className="cch-contact-info">
-                          <div className="cch-contact-name-row">
-                            <span className="cch-contact-name">{c.displayName}</span>
-                            <span className="cch-contact-time">{timeStr}</span>
-                          </div>
-                          <div className="cch-contact-msg-row">
-                            <span className="cch-contact-snippet">
-                              {lastMsg?.message || lastMsg?.subject || 'No messages yet'}
-                            </span>
-                            {c.incomingCount > 0 && (
-                              <span className="cch-unread-badge">{c.incomingCount}</span>
-                            )}
-                          </div>
-                        </div>
+                      <div className="cch-contact-msg-row">
+                        <span className="cch-contact-snippet">
+                          {lastMsg?.message || lastMsg?.subject || 'No messages yet'}
+                        </span>
+                        {c.incomingCount > 0 && (
+                          <span className="cch-unread-badge">{c.incomingCount}</span>
+                        )}
                       </div>
-                    );
-                  })}
-                </>
-              )}
+                    </div>
+                  </div>
+                );
+              })}
 
-              {conversations.length === 0 && (
+              {filteredConversations.length === 0 && (
                 <div style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 10px', fontSize: '13px' }}>
                   No contacts or messages yet.
                 </div>
@@ -1085,80 +1051,52 @@ export default function NotificationsPage({
                   </div>
                 )}
 
-                <div className="cch-composer-card">
-                  <div className="cch-composer-input-row">
-                    <textarea
-                      className="cch-composer-textarea"
-                      placeholder="Write your message.."
-                      value={replyText}
-                      maxLength={1000}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                    />
-                    <button
-                      className="cch-send-btn"
-                      onClick={() => handleSendMessage()}
-                      disabled={sending}
-                      title="Send WhatsApp Message"
-                    >
-                      {sending ? <Loader2 size={15} className="cch-spinner" /> : <Send size={15} />}
-                    </button>
-                  </div>
+                <div className="cch-composer-pill">
+                  <button
+                    type="button"
+                    className="cch-pill-icon-btn"
+                    onClick={() => setShowTemplates(!showTemplates)}
+                    title="Quick Templates"
+                  >
+                    <Plus size={20} />
+                  </button>
 
-                  <div className="cch-composer-footer">
-                    <div className="cch-action-buttons">
-                      <button
-                        type="button"
-                        className="cch-action-pill"
-                        onClick={() => setShowTemplates(!showTemplates)}
-                        title="Quick Templates"
-                      >
-                        <FileText size={14} />
-                        <span>Template</span>
-                      </button>
+                  <button
+                    type="button"
+                    className="cch-pill-icon-btn"
+                    onClick={() => setReplyText((prev) => prev + ' 😊 ')}
+                    title="Insert Emoji"
+                  >
+                    <Smile size={20} />
+                  </button>
 
-                      <button
-                        type="button"
-                        className="cch-action-pill"
-                        onClick={() => setReplyText((prev) => prev + ' 😊 ')}
-                        title="Insert Emoji"
-                      >
-                        <Smile size={14} />
-                        <span>Emoji</span>
-                      </button>
+                  <input
+                    type="text"
+                    className="cch-pill-input"
+                    placeholder="Type a message"
+                    value={replyText}
+                    maxLength={1000}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                  />
 
-                      <button
-                        type="button"
-                        className="cch-action-pill"
-                        onClick={() => {
-                          if (toast) toast('Attachment feature: link invoices or PDFs');
-                        }}
-                        title="Attach file"
-                      >
-                        <Paperclip size={14} />
-                        <span>Attach</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        className="cch-action-pill"
-                        onClick={() => {
-                          if (toast) toast('Voice message not enabled on web');
-                        }}
-                        title="Voice Message"
-                      >
-                        <Mic size={14} />
-                        <span>Voice Message</span>
-                      </button>
-                    </div>
-
-                    <span className="cch-char-count">{replyText.length}/1000</span>
-                  </div>
+                  <button
+                    className="cch-send-btn-black"
+                    onClick={() => handleSendMessage()}
+                    disabled={sending}
+                    title="Send WhatsApp Message"
+                  >
+                    {sending ? (
+                      <Loader2 size={16} className="cch-spinner" />
+                    ) : (
+                      <Send size={16} style={{ marginLeft: '2px' }} />
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
