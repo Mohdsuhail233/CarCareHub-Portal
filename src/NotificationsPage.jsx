@@ -396,30 +396,6 @@ export default function NotificationsPage({
                 <span style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>
                   Conversations ({conversations.length})
                 </span>
-                <span
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    color: '#16a34a',
-                    backgroundColor: '#dcfce7',
-                    padding: '2px 8px',
-                    borderRadius: '20px',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: '#16a34a',
-                      display: 'inline-block',
-                    }}
-                  />
-                  Live Webhook
-                </span>
               </div>
 
               {/* Search Bar */}
