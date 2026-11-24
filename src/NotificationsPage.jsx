@@ -18,6 +18,7 @@ import {
   RefreshCw,
   X,
   Loader2,
+  Menu,
 } from 'lucide-react';
 import { api } from './api';
 
@@ -28,6 +29,7 @@ export default function NotificationsPage({
   loading = false,
   onRefresh,
   toast,
+  onOpenMobileMenu,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState(null);
@@ -290,26 +292,31 @@ export default function NotificationsPage({
   return (
     <div className="cch-chat-wrapper">
       <style>{`
+        /* Full viewport height without topbar */
         .cch-chat-wrapper {
           display: flex;
           flex-direction: column;
-          width: calc(100% + 54px);
-          margin: -25px -27px -40px -27px;
-          height: calc(100vh - 68px);
+          width: 100% !important;
+          height: 100vh !important;
+          max-height: 100vh !important;
+          margin: 0 !important;
+          padding: 0 !important;
           font-family: inherit;
           background: #ffffff;
+          overflow: hidden !important;
         }
 
         .cch-chat-card {
           display: grid;
           grid-template-columns: 330px 1fr;
-          height: 100%;
-          min-height: 0;
+          height: 100% !important;
+          max-height: 100vh !important;
+          min-height: 0 !important;
           background: #ffffff;
           border: none;
           border-radius: 0;
           box-shadow: none;
-          overflow: hidden;
+          overflow: hidden !important;
         }
 
         /* Sidebar Chats List */
@@ -318,9 +325,26 @@ export default function NotificationsPage({
           flex-direction: column;
           border-right: 1px solid #f1f5f9;
           background: #ffffff;
-          height: 100%;
-          min-height: 0;
-          overflow: hidden;
+          height: 100% !important;
+          max-height: 100vh !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
+        }
+
+        .cch-mobile-menu-btn {
+          display: none;
+          background: none;
+          border: none;
+          padding: 4px;
+          cursor: pointer;
+          color: #374151;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+        }
+
+        .cch-mobile-menu-btn:hover {
+          background: #f1f5f9;
         }
 
         .cch-sidebar-header {
@@ -636,9 +660,11 @@ export default function NotificationsPage({
         }
 
         .cch-bubble.outgoing {
-          background: #eff6ff;
-          color: #1e3a8a;
+          background: #d9fdd3 !important;
+          color: #111827 !important;
           border-radius: 18px 4px 18px 18px;
+          border: 1px solid #c2f5ba !important;
+          box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
         }
 
         /* Bottom Input Card */
@@ -740,37 +766,47 @@ export default function NotificationsPage({
           transform: scale(0.92);
         }
 
-        /* Ultra-thin 5px sleek scrollbar matching modern web apps */
-        .cch-conversations-scroll::-webkit-scrollbar,
-        .cch-thread-scroll::-webkit-scrollbar,
-        .cch-templates-popup::-webkit-scrollbar {
-          width: 5px;
-        }
-
-        .cch-conversations-scroll::-webkit-scrollbar-track,
-        .cch-thread-scroll::-webkit-scrollbar-track,
-        .cch-templates-popup::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .cch-conversations-scroll::-webkit-scrollbar-thumb,
-        .cch-thread-scroll::-webkit-scrollbar-thumb,
-        .cch-templates-popup::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-        }
-
-        .cch-conversations-scroll::-webkit-scrollbar-thumb:hover,
-        .cch-thread-scroll::-webkit-scrollbar-thumb:hover,
-        .cch-templates-popup::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-
-        .cch-conversations-scroll,
-        .cch-thread-scroll,
-        .cch-templates-popup {
+        /* Single sleek 5px scrollbar ONLY for conversations list */
+        .cch-conversations-scroll {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
           scrollbar-width: thin;
           scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .cch-conversations-scroll::-webkit-scrollbar {
+          width: 5px !important;
+        }
+
+        .cch-conversations-scroll::-webkit-scrollbar-track {
+          background: transparent !important;
+        }
+
+        .cch-conversations-scroll::-webkit-scrollbar-thumb {
+          background: #cbd5e1 !important;
+          border-radius: 10px !important;
+        }
+
+        .cch-conversations-scroll::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8 !important;
+        }
+
+        /* Completely hide scrollbar in Chat Message Thread - smooth swipe / wheel */
+        .cch-thread-scroll {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          scrollbar-width: none !important; /* Firefox */
+          -ms-overflow-style: none !important; /* IE/Edge */
+        }
+
+        .cch-thread-scroll::-webkit-scrollbar {
+          display: none !important; /* Chrome, Safari, Opera */
+          width: 0 !important;
+          height: 0 !important;
         }
 
         /* Templates popup */
@@ -785,6 +821,21 @@ export default function NotificationsPage({
           gap: 6px;
           max-height: 160px;
           overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .cch-templates-popup::-webkit-scrollbar {
+          width: 5px;
+        }
+
+        .cch-templates-popup::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .cch-templates-popup::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
         }
 
         .cch-template-option {
@@ -809,15 +860,15 @@ export default function NotificationsPage({
            ------------------------------------------------------------- */
         @media (max-width: 768px) {
           .cch-chat-wrapper {
-            width: calc(100% + 28px);
-            margin: -16px -14px -40px -14px;
-            height: calc(100dvh - 68px);
+            width: 100% !important;
+            margin: 0 !important;
+            height: 100dvh !important;
           }
 
           .cch-chat-card {
-            grid-template-columns: 1fr;
-            height: 100%;
-            min-height: 0;
+            grid-template-columns: 1fr !important;
+            height: 100% !important;
+            min-height: 0 !important;
             border-radius: 0;
           }
 
@@ -825,13 +876,19 @@ export default function NotificationsPage({
           .cch-chats-sidebar {
             display: ${mobileChatOpen ? 'none' : 'flex'} !important;
             border-right: none;
+            width: 100% !important;
           }
 
           .cch-chat-pane {
             display: ${mobileChatOpen ? 'flex' : 'none'} !important;
+            width: 100% !important;
           }
 
           .cch-mobile-back {
+            display: flex !important;
+          }
+
+          .cch-mobile-menu-btn {
             display: flex !important;
           }
 
@@ -859,7 +916,19 @@ export default function NotificationsPage({
         <div className="cch-chats-sidebar">
           <div className="cch-sidebar-header">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <div className="cch-sidebar-title" style={{ margin: 0 }}>Chats</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {onOpenMobileMenu && (
+                  <button
+                    type="button"
+                    className="cch-mobile-menu-btn"
+                    onClick={onOpenMobileMenu}
+                    title="Open Navigation"
+                  >
+                    <Menu size={20} />
+                  </button>
+                )}
+                <div className="cch-sidebar-title" style={{ margin: 0 }}>Chats</div>
+              </div>
               {onRefresh && (
                 <button
                   onClick={onRefresh}

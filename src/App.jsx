@@ -1782,71 +1782,73 @@ export default function App() {
         />
       )}
 
-      <main className="main">
-        <header className="topbar">
-          <button className="menu-btn" onClick={() => setMobile(true)}>
-            <Menu />
-          </button>
-
-          <div className="topbar-greeting">
-            <span className="topbar-greeting-text">
-              {getGreeting()}, <strong className="topbar-greeting-name">{displayName}</strong>
-            </span>
-            <span className="topbar-greeting-date">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </span>
-          </div>
-
-          <div className="topbar-right-group">
-            <button className="modern-bell-btn" onClick={() => setPage('Notifications')} title="Notifications">
-              <Bell size={18} />
-              <span className="modern-bell-badge" />
+      <main className={`main ${page === 'Notifications' ? 'main-chat-full' : ''}`}>
+        {page !== 'Notifications' && (
+          <header className="topbar">
+            <button className="menu-btn" onClick={() => setMobile(true)}>
+              <Menu />
             </button>
 
-            <div className="modern-user-profile-wrapper" style={{ position: 'relative', zIndex: userMenuOpen ? 1000 : 10 }}>
-              <div
-                className="modern-user-profile"
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                title="Profile & Options"
-              >
-                <div className="modern-user-avatar-badge">
-                  {userInitials}
-                </div>
-                <span className="modern-user-name">{displayName}</span>
-                <ChevronDown size={15} className={`modern-user-chevron ${userMenuOpen ? 'rotate' : ''}`} />
-              </div>
-
-              {userMenuOpen && (
-                <>
-                  <div
-                    className="dropdown-click-outside"
-                    onClick={() => setUserMenuOpen(false)}
-                  />
-                  <div className="user-dropdown-menu">
-                    <div className="user-dropdown-header">
-                      <strong>{displayName}</strong>
-                      <small>{currentUser?.email || 'Garage Administrator'}</small>
-                    </div>
-                    <button
-                      type="button"
-                      className="user-dropdown-item danger"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setUserMenuOpen(false);
-                        handleLogout();
-                      }}
-                    >
-                      <LogOut size={14} />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
-                </>
-              )}
+            <div className="topbar-greeting">
+              <span className="topbar-greeting-text">
+                {getGreeting()}, <strong className="topbar-greeting-name">{displayName}</strong>
+              </span>
+              <span className="topbar-greeting-date">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </span>
             </div>
-          </div>
-        </header>
 
-        <div className="content">
+            <div className="topbar-right-group">
+              <button className="modern-bell-btn" onClick={() => setPage('Notifications')} title="Notifications">
+                <Bell size={18} />
+                <span className="modern-bell-badge" />
+              </button>
+
+              <div className="modern-user-profile-wrapper" style={{ position: 'relative', zIndex: userMenuOpen ? 1000 : 10 }}>
+                <div
+                  className="modern-user-profile"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  title="Profile & Options"
+                >
+                  <div className="modern-user-avatar-badge">
+                    {userInitials}
+                  </div>
+                  <span className="modern-user-name">{displayName}</span>
+                  <ChevronDown size={15} className={`modern-user-chevron ${userMenuOpen ? 'rotate' : ''}`} />
+                </div>
+
+                {userMenuOpen && (
+                  <>
+                    <div
+                      className="dropdown-click-outside"
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+                    <div className="user-dropdown-menu">
+                      <div className="user-dropdown-header">
+                        <strong>{displayName}</strong>
+                        <small>{currentUser?.email || 'Garage Administrator'}</small>
+                      </div>
+                      <button
+                        type="button"
+                        className="user-dropdown-item danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUserMenuOpen(false);
+                          handleLogout();
+                        }}
+                      >
+                        <LogOut size={14} />
+                        <span>Log Out</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </header>
+        )}
+
+        <div className={`content ${page === 'Notifications' ? 'content-chat-full' : ''}`}>
           {page === 'Dashboard' ? (
             <Dashboard
               go={setPage}
@@ -1886,6 +1888,7 @@ export default function App() {
               loading={loading}
               onRefresh={fetchAllData}
               toast={toast}
+              onOpenMobileMenu={() => setMobile(true)}
             />
           ) : (
             <>
