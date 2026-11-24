@@ -11,6 +11,7 @@ import ReportsPage from './ReportsPage';
 import Dashboard from './Dashboard';
 import LoginPage from './LoginPage';
 import CustomersPage from './CustomersPage';
+import NotificationsPage from './NotificationsPage';
 
 const nav = [
   ['Dashboard', LayoutDashboard],
@@ -1874,6 +1875,15 @@ export default function App() {
                 setSelected({ row, raw: cust, page: 'Customers' });
                 setModal({ type: 'detail', page: 'Customers' });
               }}
+              onRefresh={fetchAllData}
+              toast={toast}
+            />
+          ) : page === 'Notifications' ? (
+            <NotificationsPage
+              notifications={rawData.Notifications || []}
+              customers={rawData.Customers || []}
+              vehicles={rawData.Vehicles || []}
+              loading={loading}
               onRefresh={fetchAllData}
               toast={toast}
             />
