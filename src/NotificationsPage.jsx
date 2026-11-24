@@ -151,7 +151,7 @@ export default function NotificationsPage({
       }
 
       groups[key].messages.push(n);
-      if (n.direction === 'INCOMING' || n.notificationType === 'CUSTOMER_MESSAGE') {
+      if (n.direction === 'INCOMING') {
         groups[key].incomingCount += 1;
       }
     });
@@ -305,21 +305,22 @@ export default function NotificationsPage({
         .cch-chat-wrapper {
           display: flex;
           flex-direction: column;
-          width: 100%;
+          width: calc(100% + 54px);
+          margin: -25px -27px -40px -27px;
+          height: calc(100vh - 68px);
           font-family: inherit;
-          margin-top: -12px;
+          background: #ffffff;
         }
 
         .cch-chat-card {
           display: grid;
-          grid-template-columns: 320px 1fr;
-          height: calc(100vh - 120px);
-          max-height: calc(100vh - 120px);
-          min-height: 520px;
+          grid-template-columns: 330px 1fr;
+          height: 100%;
+          min-height: 0;
           background: #ffffff;
-          border-radius: 20px;
-          border: 1px solid #e5e7eb;
-          box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+          border: none;
+          border-radius: 0;
+          box-shadow: none;
           overflow: hidden;
         }
 
@@ -791,11 +792,17 @@ export default function NotificationsPage({
            MOBILE RESPONSIVE (FIRST) STYLES
            ------------------------------------------------------------- */
         @media (max-width: 768px) {
+          .cch-chat-wrapper {
+            width: calc(100% + 28px);
+            margin: -16px -14px -40px -14px;
+            height: calc(100dvh - 68px);
+          }
+
           .cch-chat-card {
             grid-template-columns: 1fr;
-            height: calc(100dvh - 130px);
-            min-height: 480px;
-            border-radius: 16px;
+            height: 100%;
+            min-height: 0;
+            border-radius: 0;
           }
 
           /* When on mobile, toggle between sidebar and chat pane */
@@ -1006,8 +1013,7 @@ export default function NotificationsPage({
                 </div>
 
                 {activeChat.messages.map((m, idx) => {
-                  const isIncoming =
-                    m.direction === 'INCOMING' || m.notificationType === 'CUSTOMER_MESSAGE';
+                  const isIncoming = m.direction === 'INCOMING';
                   const time = formatShortTime(m.createdAt || m.sentAt);
 
                   return (
