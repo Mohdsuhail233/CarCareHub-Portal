@@ -37,7 +37,46 @@ export default function NotificationsPage({
   const [replyText, setReplyText] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
   const [sending, setSending] = useState(false);
+  const [liveNotifications, setLiveNotifications] = useState(notifications || []);
   const messagesEndRef = useRef(null);
+  const pollingRef = useRef(false);
+
+  // Sync initial/parent notifications while preserving any pending optimistic local messages
+  useEffect(() => {
+    setLiveNotifications((prev) => {
+      const pendingLocals = prev.filter((m) => String(m.id || '').startsWith('local-'));
+      if (pendingLocals.length === 0) return notifications || [];
+      return [...pendingLocals, ...(notifications || [])];
+    });
+  }, [notifications]);
+
+  // Lightweight single-endpoint fetch for instant WhatsApp sync
+  const fetchLiveNotifications = async () => {
+    if (pollingRef.current) return;
+    pollingRef.current = true;
+    try {
+      const data = await api.getNotifications();
+      if (Array.isArray(data)) {
+        setLiveNotifications((prev) => {
+          const pendingLocals = prev.filter(
+            (m) =>
+              String(m.id || '').startsWith('local-') &&
+              !data.some(
+                (srv) =>
+                  srv.message === m.message &&
+                  normalizePhone(srv.recipient) === normalizePhone(m.recipient) &&
+                  Math.abs(new Date(srv.createdAt || srv.sentAt || 0).getTime() - new Date(m.createdAt).getTime()) < 30000
+              )
+          );
+          return [...pendingLocals, ...data];
+        });
+      }
+    } catch (_) {
+      // Silent background poll
+    } finally {
+      pollingRef.current = false;
+    }
+  };
 
   // Pre-made quick templates
   const templates = [
@@ -107,7 +146,7 @@ export default function NotificationsPage({
   const conversations = useMemo(() => {
     const groups = {};
 
-    (notifications || []).forEach((n) => {
+    (liveNotifications || []).forEach((n) => {
       const rawRec = n.recipient || 'Unknown';
       const cleanPhone = normalizePhone(rawRec);
       const key = cleanPhone || rawRec;
@@ -214,14 +253,16 @@ export default function NotificationsPage({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.key, activeChat?.messages?.length]);
 
-  // Auto-poll every 8 seconds for incoming WhatsApp messages & delivery statuses
+  // Fast 2-second lightweight polling for instant incoming messages & delivery ticks
   useEffect(() => {
-    if (!onRefresh) return;
+    fetchLiveNotifications();
     const timer = setInterval(() => {
-      onRefresh();
-    }, 8000);
+      if (document.visibilityState === 'visible') {
+        fetchLiveNotifications();
+      }
+    }, 2000);
     return () => clearInterval(timer);
-  }, [onRefresh]);
+  }, []);
 
   const formatShortTime = (isoString) => {
     if (!isoString) return '';
@@ -257,7 +298,7 @@ export default function NotificationsPage({
     return avatarColors[Math.abs(hash) % avatarColors.length];
   };
 
-  // Send WhatsApp action directly via backend API without redirecting to WhatsApp Web
+  // Instant optimistic WhatsApp send (no toast on success, no full-app reload)
   const handleSendMessage = async (textToSend = replyText) => {
     if (!activeChat) return;
     const phone = activeChat.cleanPhone || activeChat.recipient;
@@ -266,37 +307,48 @@ export default function NotificationsPage({
       return;
     }
     const finalMsg = (textToSend || replyText).trim();
-    if (!finalMsg || sending) return;
+    if (!finalMsg) return;
 
-    // Create optimistic message so UI updates instantly
-    const newMsg = {
-      id: 'local-' + Date.now(),
+    const localId = 'local-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const nowIso = new Date().toISOString();
+
+    const optimisticMsg = {
+      id: localId,
       recipient: phone,
+      customerName: activeChat.displayName,
       message: finalMsg,
       direction: 'OUTGOING',
-      notificationType: 'CUSTOMER_MESSAGE',
-      status: 'SENT',
-      createdAt: new Date().toISOString(),
-      sentAt: new Date().toISOString(),
+      notificationType: 'CHAT_MESSAGE',
+      status: 'PENDING',
+      createdAt: nowIso,
+      sentAt: nowIso,
     };
 
-    activeChat.messages.push(newMsg);
-    activeChat.lastMessage = newMsg;
-    activeChat.lastActivity = newMsg.createdAt;
-
+    // Show bubble instantly (0ms) and clear input
+    setLiveNotifications((prev) => [optimisticMsg, ...prev]);
     setReplyText('');
     setShowTemplates(false);
-    setSending(true);
 
     try {
-      await api.sendWhatsAppCustomMessage(phone, finalMsg);
-      if (toast) toast('Message sent via WhatsApp');
-      if (onRefresh) onRefresh();
+      const res = await api.sendWhatsAppCustomMessage(phone, finalMsg);
+      setLiveNotifications((prev) =>
+        prev.map((m) =>
+          m.id === localId
+            ? { ...m, id: res?.notificationId || localId, status: 'SENT' }
+            : m
+        )
+      );
+      fetchLiveNotifications();
     } catch (err) {
       console.warn('WhatsApp custom message error:', err);
-      if (toast) toast(err.message || 'Message sent via WhatsApp');
-    } finally {
-      setSending(false);
+      setLiveNotifications((prev) =>
+        prev.map((m) =>
+          m.id === localId
+            ? { ...m, status: 'FAILED', subject: 'FAILED: ' + (err.message || 'Send failed') }
+            : m
+        )
+      );
+      if (toast) toast(err.message || 'Failed to send WhatsApp message');
     }
   };
 
