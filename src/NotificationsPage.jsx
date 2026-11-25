@@ -40,6 +40,7 @@ export default function NotificationsPage({
   const [liveNotifications, setLiveNotifications] = useState(notifications || []);
   const messagesEndRef = useRef(null);
   const pollingRef = useRef(false);
+  const sendEpochRef = useRef(0);
 
   // Sync initial/parent notifications while preserving any pending optimistic local messages
   useEffect(() => {
@@ -54,8 +55,11 @@ export default function NotificationsPage({
   const fetchLiveNotifications = async () => {
     if (pollingRef.current) return;
     pollingRef.current = true;
+    const epochAtStart = sendEpochRef.current;
     try {
       const data = await api.getNotifications();
+      // Discard stale poll if a new message was sent while this request was in flight
+      if (epochAtStart !== sendEpochRef.current) return;
       if (Array.isArray(data)) {
         setLiveNotifications((prev) => {
           const pendingLocals = prev.filter(
@@ -65,7 +69,7 @@ export default function NotificationsPage({
                 (srv) =>
                   srv.message === m.message &&
                   normalizePhone(srv.recipient) === normalizePhone(m.recipient) &&
-                  Math.abs(new Date(srv.createdAt || srv.sentAt || 0).getTime() - new Date(m.createdAt).getTime()) < 30000
+                  Math.abs((parseServerDate(srv.createdAt || srv.sentAt)?.getTime() || 0) - (parseServerDate(m.createdAt)?.getTime() || 0)) < 60000
               )
           );
           return [...pendingLocals, ...data];
@@ -142,6 +146,15 @@ export default function NotificationsPage({
     return digits.length >= 10 ? digits.slice(-10) : digits;
   };
 
+  // Parse backend LocalDateTime (UTC without 'Z') cleanly into browser local time (IST)
+  const parseServerDate = (isoString) => {
+    if (!isoString) return null;
+    const str = String(isoString).trim();
+    const hasTz = str.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(str);
+    const d = new Date(hasTz ? str : `${str}Z`);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
   // Group notifications into conversations by recipient
   const conversations = useMemo(() => {
     const groups = {};
@@ -156,19 +169,22 @@ export default function NotificationsPage({
         customerByPhone[cleanPhone] ||
         (cleanPhone.length >= 10 ? customerByPhone[cleanPhone.slice(-10)] : null);
 
+      const cleanCustomerName =
+        n.customerName &&
+        !n.customerName.startsWith('WhatsApp ') &&
+        !n.customerName.startsWith('OUTGOING:') &&
+        !n.customerName.startsWith('FAILED:') &&
+        !n.customerName.startsWith('+') &&
+        !/^\d+$/.test(n.customerName.trim())
+          ? n.customerName
+          : null;
+
       if (!groups[key]) {
         // Name resolution priority:
         // 1. Matched customer fullName in DB
         // 2. Extracted name from message body (e.g. "Hello Nizamul haq,")
         // 3. n.customerName (if valid and not a generic subject)
         // 4. Formatted phone number
-        const cleanCustomerName =
-          n.customerName &&
-          !n.customerName.startsWith('WhatsApp ') &&
-          !n.customerName.startsWith('FAILED:') &&
-          !n.customerName.startsWith('+')
-            ? n.customerName
-            : null;
         const resolvedName =
           matchedCust?.fullName ||
           matchedCust?.name ||
@@ -190,12 +206,14 @@ export default function NotificationsPage({
           lastActivity: n.createdAt || n.sentAt || '',
         };
       } else {
-        // Upgrade display name if we now find a more accurate customer/extracted name
+        // Upgrade display name if we now find a more accurate customer/extracted/profile name
         if (matchedCust && (!groups[key].customer || groups[key].displayName.startsWith('+'))) {
           groups[key].customer = matchedCust;
           groups[key].displayName = matchedCust.fullName || matchedCust.name;
         } else if (extractedName && groups[key].displayName.startsWith('+')) {
           groups[key].displayName = extractedName;
+        } else if (cleanCustomerName && groups[key].displayName.startsWith('+')) {
+          groups[key].displayName = cleanCustomerName;
         }
       }
 
@@ -207,8 +225,8 @@ export default function NotificationsPage({
 
     const list = Object.values(groups).map((group) => {
       group.messages.sort((a, b) => {
-        const timeA = new Date(a.createdAt || a.sentAt || 0).getTime();
-        const timeB = new Date(b.createdAt || b.sentAt || 0).getTime();
+        const timeA = parseServerDate(a.createdAt || a.sentAt)?.getTime() || 0;
+        const timeB = parseServerDate(b.createdAt || b.sentAt)?.getTime() || 0;
         return timeA - timeB;
       });
       const lastMsg = group.messages[group.messages.length - 1];
@@ -218,13 +236,13 @@ export default function NotificationsPage({
     });
 
     list.sort((a, b) => {
-      const timeA = new Date(a.lastActivity || 0).getTime();
-      const timeB = new Date(b.lastActivity || 0).getTime();
+      const timeA = parseServerDate(a.lastActivity)?.getTime() || 0;
+      const timeB = parseServerDate(b.lastActivity)?.getTime() || 0;
       return timeB - timeA;
     });
 
     return list;
-  }, [notifications, customerByPhone, customerById, vehiclesByCustomer]);
+  }, [liveNotifications, customerByPhone, customerById, vehiclesByCustomer]);
 
   // Filtered conversations list (Unified without Favourites/Direct Messages splitting)
   const filteredConversations = useMemo(() => {
@@ -253,22 +271,22 @@ export default function NotificationsPage({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.key, activeChat?.messages?.length]);
 
-  // Fast 2-second lightweight polling for instant incoming messages & delivery ticks
+  // Fast 1.2-second lightweight polling for instant incoming messages & delivery ticks
   useEffect(() => {
     fetchLiveNotifications();
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchLiveNotifications();
       }
-    }, 2000);
+    }, 1200);
     return () => clearInterval(timer);
   }, []);
 
   const formatShortTime = (isoString) => {
     if (!isoString) return '';
     try {
-      const d = new Date(isoString);
-      if (isNaN(d.getTime())) return isoString;
+      const d = parseServerDate(isoString);
+      if (!d) return isoString;
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     } catch {
       return '';
@@ -325,6 +343,7 @@ export default function NotificationsPage({
     };
 
     // Show bubble instantly (0ms) and clear input
+    sendEpochRef.current += 1;
     setLiveNotifications((prev) => [optimisticMsg, ...prev]);
     setReplyText('');
     setShowTemplates(false);
@@ -338,7 +357,7 @@ export default function NotificationsPage({
             : m
         )
       );
-      fetchLiveNotifications();
+      setTimeout(() => fetchLiveNotifications(), 300);
     } catch (err) {
       console.warn('WhatsApp custom message error:', err);
       setLiveNotifications((prev) =>
@@ -360,18 +379,33 @@ export default function NotificationsPage({
   return (
     <div className="cch-chat-wrapper">
       <style>{`
-        /* Full viewport height without topbar */
+        /* Lock chat viewport so outer page never scrolls and chat header stays sticky */
+        html, body, .app, .main.main-chat-full, .content.content-chat-full {
+          height: 100dvh !important;
+          max-height: 100dvh !important;
+          overflow: hidden !important;
+        }
+
         .cch-chat-wrapper {
+          position: fixed !important;
+          top: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          left: 248px !important;
+          z-index: 4 !important;
           display: flex;
           flex-direction: column;
-          width: 100% !important;
-          height: 100vh !important;
-          max-height: 100vh !important;
           margin: 0 !important;
           padding: 0 !important;
           font-family: inherit;
           background: #ffffff;
           overflow: hidden !important;
+        }
+
+        @media (max-width: 900px) {
+          .cch-chat-wrapper {
+            left: 0 !important;
+          }
         }
 
         .cch-chat-card {
