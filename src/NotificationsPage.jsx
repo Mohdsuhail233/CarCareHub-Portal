@@ -123,11 +123,18 @@ export default function NotificationsPage({
         // 2. Extracted name from message body (e.g. "Hello Nizamul haq,")
         // 3. n.customerName (if valid and not a generic subject)
         // 4. Formatted phone number
+        const cleanCustomerName =
+          n.customerName &&
+          !n.customerName.startsWith('WhatsApp ') &&
+          !n.customerName.startsWith('FAILED:') &&
+          !n.customerName.startsWith('+')
+            ? n.customerName
+            : null;
         const resolvedName =
           matchedCust?.fullName ||
           matchedCust?.name ||
           extractedName ||
-          (n.customerName && !n.customerName.startsWith('WhatsApp from') && !n.customerName.startsWith('+') ? n.customerName : null) ||
+          cleanCustomerName ||
           (cleanPhone ? `+91 ${cleanPhone}` : rawRec);
 
         const custVehicles = matchedCust?.id ? vehiclesByCustomer[matchedCust.id] || [] : [];
@@ -206,6 +213,15 @@ export default function NotificationsPage({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.key, activeChat?.messages?.length]);
+
+  // Auto-poll every 8 seconds for incoming WhatsApp messages & delivery statuses
+  useEffect(() => {
+    if (!onRefresh) return;
+    const timer = setInterval(() => {
+      onRefresh();
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [onRefresh]);
 
   const formatShortTime = (isoString) => {
     if (!isoString) return '';
@@ -1084,7 +1100,24 @@ export default function NotificationsPage({
 
                       {/* Bubble */}
                       <div className={`cch-bubble ${isIncoming ? 'incoming' : 'outgoing'}`}>
-                        {m.message || m.subject || '—'}
+                        <div>{m.message || m.subject || '—'}</div>
+                        {!isIncoming && (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', marginTop: '4px', fontSize: '10.5px', color: m.status === 'FAILED' ? '#dc2626' : '#64748b' }}>
+                            {m.status === 'FAILED' ? (
+                              <span title={m.subject || 'Delivery failed'}>
+                                Failed{m.subject && m.subject.startsWith('FAILED:') ? `: ${m.subject.slice(7).trim()}` : ''}
+                              </span>
+                            ) : m.status === 'READ' ? (
+                              <CheckCheck size={13} color="#0284c7" />
+                            ) : m.status === 'DELIVERED' ? (
+                              <CheckCheck size={13} color="#64748b" />
+                            ) : m.status === 'PENDING' ? (
+                              <Clock size={12} color="#94a3b8" />
+                            ) : (
+                              <Check size={13} color="#64748b" />
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
