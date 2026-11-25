@@ -38,9 +38,29 @@ export default function NotificationsPage({
   const [showTemplates, setShowTemplates] = useState(false);
   const [sending, setSending] = useState(false);
   const [liveNotifications, setLiveNotifications] = useState(notifications || []);
+  const [lastReadMap, setLastReadMap] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('cch_chat_last_read') || '{}');
+    } catch {
+      return {};
+    }
+  });
   const messagesEndRef = useRef(null);
   const pollingRef = useRef(false);
   const sendEpochRef = useRef(0);
+
+  const markChatAsRead = (key, latestTimeMs) => {
+    if (!key) return;
+    const targetMs = latestTimeMs || Date.now();
+    setLastReadMap((prev) => {
+      if ((prev[key] || 0) >= targetMs) return prev;
+      const next = { ...prev, [key]: targetMs };
+      try {
+        localStorage.setItem('cch_chat_last_read', JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+  };
 
   // Sync initial/parent notifications while preserving any pending optimistic local messages
   useEffect(() => {
@@ -219,7 +239,11 @@ export default function NotificationsPage({
 
       groups[key].messages.push(n);
       if (n.direction === 'INCOMING') {
-        groups[key].incomingCount += 1;
+        const msgTime = parseServerDate(n.createdAt || n.sentAt)?.getTime() || 0;
+        const lastRead = lastReadMap[key] || 0;
+        if (msgTime > lastRead) {
+          groups[key].incomingCount += 1;
+        }
       }
     });
 
@@ -242,7 +266,7 @@ export default function NotificationsPage({
     });
 
     return list;
-  }, [liveNotifications, customerByPhone, customerById, vehiclesByCustomer]);
+  }, [liveNotifications, customerByPhone, customerById, vehiclesByCustomer, lastReadMap]);
 
   // Filtered conversations list (Unified without Favourites/Direct Messages splitting)
   const filteredConversations = useMemo(() => {
@@ -266,10 +290,16 @@ export default function NotificationsPage({
     return filteredConversations[0] || conversations[0] || null;
   }, [selectedKey, conversations, filteredConversations]);
 
-  // Scroll to bottom when active chat changes
+  // Scroll to bottom and mark active chat as read when opened or when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeChat?.key, activeChat?.messages?.length]);
+    if (!activeChat) return;
+    const isDesktop = typeof window !== 'undefined' ? window.innerWidth > 768 : true;
+    if ((isDesktop || mobileChatOpen) && activeChat.incomingCount > 0) {
+      const latestMs = parseServerDate(activeChat.lastActivity)?.getTime() || Date.now();
+      markChatAsRead(activeChat.key, latestMs);
+    }
+  }, [activeChat?.key, activeChat?.messages?.length, activeChat?.incomingCount, mobileChatOpen]);
 
   // Fast 1.2-second lightweight polling for instant incoming messages & delivery ticks
   useEffect(() => {
@@ -374,6 +404,9 @@ export default function NotificationsPage({
   const handleSelectConversation = (key) => {
     setSelectedKey(key);
     setMobileChatOpen(true);
+    const conv = conversations.find((c) => c.key === key);
+    const latestMs = parseServerDate(conv?.lastActivity)?.getTime() || Date.now();
+    markChatAsRead(key, latestMs);
   };
 
   return (
