@@ -781,9 +781,9 @@ export default function NotificationsPage({
 
         .cch-bubble {
           max-width: 68%;
-          padding: 12px 18px;
+          padding: 7px 12px;
           font-size: 13.5px;
-          line-height: 1.5;
+          line-height: 1.4;
           word-break: break-word;
           box-sizing: border-box;
         }
@@ -791,15 +791,14 @@ export default function NotificationsPage({
         .cch-bubble.incoming {
           background: #f3f4f6;
           color: #1f2937;
-          border-radius: 4px 18px 18px 18px;
+          border-radius: 4px 12px 12px 12px;
         }
 
         .cch-bubble.outgoing {
           background: #d9fdd3 !important;
           color: #111827 !important;
-          border-radius: 18px 4px 18px 18px;
-          border: 1px solid #c2f5ba !important;
-          box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+          border-radius: 12px 4px 12px 12px;
+          box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
         }
 
         /* Bottom Input Card */
@@ -1219,24 +1218,26 @@ export default function NotificationsPage({
 
                       {/* Bubble */}
                       <div className={`cch-bubble ${isIncoming ? 'incoming' : 'outgoing'}`}>
-                        <div>{m.message || m.subject || '—'}</div>
-                        {!isIncoming && (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', marginTop: '4px', fontSize: '10.5px', color: m.status === 'FAILED' ? '#dc2626' : '#64748b' }}>
-                            {m.status === 'FAILED' ? (
-                              <span title={m.subject || 'Delivery failed'}>
-                                Failed{m.subject && m.subject.startsWith('FAILED:') ? `: ${m.subject.slice(7).trim()}` : ''}
-                              </span>
-                            ) : m.status === 'READ' ? (
-                              <CheckCheck size={13} color="#0284c7" />
-                            ) : m.status === 'DELIVERED' ? (
-                              <CheckCheck size={13} color="#64748b" />
-                            ) : m.status === 'PENDING' ? (
-                              <Clock size={12} color="#94a3b8" />
-                            ) : (
-                              <Check size={13} color="#64748b" />
-                            )}
-                          </div>
-                        )}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '8px' }}>
+                          <span>{m.message || m.subject || '—'}</span>
+                          {!isIncoming && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 'auto', fontSize: '10.5px', lineHeight: 1, color: m.status === 'FAILED' ? '#dc2626' : '#64748b' }}>
+                              {m.status === 'FAILED' ? (
+                                <span title={m.subject || 'Delivery failed'}>
+                                  Failed{m.subject && m.subject.startsWith('FAILED:') ? `: ${m.subject.slice(7).trim()}` : ''}
+                                </span>
+                              ) : m.status === 'READ' ? (
+                                <CheckCheck size={14} color="#0284c7" />
+                              ) : m.status === 'DELIVERED' ? (
+                                <CheckCheck size={14} color="#64748b" />
+                              ) : m.status === 'PENDING' ? (
+                                <Clock size={12} color="#94a3b8" />
+                              ) : (
+                                <Check size={14} color="#64748b" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

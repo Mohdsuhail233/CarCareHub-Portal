@@ -736,7 +736,51 @@ export default function App() {
   }, [page]);
   const [mobile, setMobile] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState('ALL');
+  const [dateMenuOpen, setDateMenuOpen] = useState(false);
+
+  const dateRangeOptions = [
+    { key: 'ALL', label: 'All Time' },
+    { key: 'TODAY', label: 'Today' },
+    { key: 'LAST_7_DAYS', label: 'Last 7 Days' },
+    { key: 'THIS_MONTH', label: 'This Month' },
+    { key: 'LAST_MONTH', label: 'Last Month' },
+  ];
+
+  const matchesDateRange = (item, range) => {
+    if (!range || range === 'ALL') return true;
+    const rawDate =
+      item?.invoiceDate ||
+      item?.paymentDate ||
+      item?.expenseDate ||
+      item?.receivedAt ||
+      item?.dueDate ||
+      item?.sentAt ||
+      item?.createdAt ||
+      item?.updatedAt;
+    if (!rawDate) return true;
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return true;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (range === 'TODAY') {
+      return d >= startOfToday;
+    }
+    if (range === 'LAST_7_DAYS') {
+      const sevenDaysAgo = new Date(startOfToday);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      return d >= sevenDaysAgo;
+    }
+    if (range === 'THIS_MONTH') {
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }
+    if (range === 'LAST_MONTH') {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return d.getFullYear() === lastMonth.getFullYear() && d.getMonth() === lastMonth.getMonth();
+    }
+    return true;
+  };
 
   const displayName = currentUser?.fullName || currentUser?.email?.split('@')[0] || 'Faiz Khan';
   const userInitials = getUserInitials(displayName, currentUser?.email);
@@ -1915,45 +1959,125 @@ export default function App() {
                     }
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="outline date">
-                    <CalendarClock size={15} /> This Month <ChevronDown size={14} />
+                <div style={{ position: 'relative', display: 'flex', gap: '8px', zIndex: dateMenuOpen ? 40 : 5 }}>
+                  <button
+                    type="button"
+                    className="outline date"
+                    onClick={() => setDateMenuOpen((prev) => !prev)}
+                  >
+                    <CalendarClock size={15} />
+                    <span>{dateRangeOptions.find((o) => o.key === dateRange)?.label || 'All Time'}</span>
+                    <ChevronDown size={14} />
                   </button>
+                  {dateMenuOpen && (
+                    <>
+                      <div
+                        className="dropdown-click-outside"
+                        onClick={() => setDateMenuOpen(false)}
+                      />
+                      <div
+                        className="user-dropdown-menu"
+                        style={{ top: '42px', right: 0, minWidth: '165px', padding: '6px' }}
+                      >
+                        {dateRangeOptions.map((opt) => (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            className="user-dropdown-item"
+                            style={{
+                              fontWeight: dateRange === opt.key ? 700 : 500,
+                              color: dateRange === opt.key ? '#0f172a' : '#475569',
+                              background: dateRange === opt.key ? '#f1f5f9' : 'transparent',
+                            }}
+                            onClick={() => {
+                              setDateRange(opt.key);
+                              setDateMenuOpen(false);
+                            }}
+                          >
+                            <span>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {tableData[page] ? (
-                <TablePage
-                  page={page}
-                  data={tableData[page]}
-                  loading={loading}
-                  toast={toast}
-                  invoices={rawData.Invoices || []}
-                  onAdd={(target) => openAdd(typeof target === 'string' ? target : page)}
-                  onCollectPayment={(item) => openAdd('Payments', item)}
-                  onSendReminder={handleSendWhatsAppReminder}
-                  sendingReminderId={sendingReminderId}
-                  onRefresh={fetchAllData}
-                  onUpdateStatus={handleUpdateJobStatus}
-                  onEditSparePart={openEditSparePart}
-                  onView={(row, idx) => {
-                    const rawItem = tableData[page].raw?.[idx] || {};
-                    setSelected({ row, raw: rawItem, page });
-                    setRestockQty('');
-                    setRestockNotes('');
-                    if (page === 'Service Jobs' && rawItem.id) {
-                      fetchJobBreakdown(rawItem.id);
-                    }
-                    setModal({ type: 'detail', page });
-                  }}
-                />
-              ) : (
-                <ReportsPage
-                  summary={dashboardSummary}
-                  rawData={rawData}
-                  onRefresh={fetchAllData}
-                />
-              )}
+              {tableData[page] ? (() => {
+                const fullTable = tableData[page];
+                const filteredIndices = [];
+                (fullTable.raw || []).forEach((item, i) => {
+                  if (matchesDateRange(item, dateRange)) filteredIndices.push(i);
+                });
+                const filteredTableData = dateRange === 'ALL'
+                  ? fullTable
+                  : {
+                      ...fullTable,
+                      rows: filteredIndices.map((i) => fullTable.rows[i]),
+                      raw: filteredIndices.map((i) => fullTable.raw[i]),
+                    };
+
+                return (
+                  <TablePage
+                    page={page}
+                    data={filteredTableData}
+                    loading={loading}
+                    toast={toast}
+                    invoices={rawData.Invoices || []}
+                    onAdd={(target) => openAdd(typeof target === 'string' ? target : page)}
+                    onCollectPayment={(item) => openAdd('Payments', item)}
+                    onSendReminder={handleSendWhatsAppReminder}
+                    sendingReminderId={sendingReminderId}
+                    onRefresh={fetchAllData}
+                    onUpdateStatus={handleUpdateJobStatus}
+                    onEditSparePart={openEditSparePart}
+                    onView={(row, idx) => {
+                      const rawItem = filteredTableData.raw?.[idx] || {};
+                      setSelected({ row, raw: rawItem, page });
+                      setRestockQty('');
+                      setRestockNotes('');
+                      if (page === 'Service Jobs' && rawItem.id) {
+                        fetchJobBreakdown(rawItem.id);
+                      }
+                      setModal({ type: 'detail', page });
+                    }}
+                  />
+                );
+              })() : (() => {
+                const filteredReportsRaw = dateRange === 'ALL'
+                  ? rawData
+                  : {
+                      ...rawData,
+                      Payments: (rawData.Payments || []).filter((p) => matchesDateRange(p, dateRange)),
+                      Expenses: (rawData.Expenses || []).filter((e) => matchesDateRange(e, dateRange)),
+                      Invoices: (rawData.Invoices || []).filter((inv) => matchesDateRange(inv, dateRange)),
+                      'Service Jobs': (rawData['Service Jobs'] || []).filter((j) => matchesDateRange(j, dateRange)),
+                    };
+                const filteredRev = (filteredReportsRaw.Payments || []).reduce(
+                  (acc, p) => acc + (p.status === 'SUCCESS' ? Number(p.amount || 0) : 0),
+                  0
+                );
+                const filteredExp = (filteredReportsRaw.Expenses || []).reduce(
+                  (acc, e) => acc + Number(e.amount || 0),
+                  0
+                );
+                const filteredSummary = dateRange === 'ALL'
+                  ? dashboardSummary
+                  : {
+                      ...(dashboardSummary || {}),
+                      totalRevenue: filteredRev,
+                      totalExpenses: filteredExp,
+                      netProfit: filteredRev - filteredExp,
+                    };
+
+                return (
+                  <ReportsPage
+                    summary={filteredSummary}
+                    rawData={filteredReportsRaw}
+                    onRefresh={fetchAllData}
+                  />
+                );
+              })()}
             </>
           )}
         </div>

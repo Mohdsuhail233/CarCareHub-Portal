@@ -243,8 +243,113 @@ export default function Dashboard({ go, summary, rawData, loading, onRefresh, op
     return allJobs.slice(0, 3);
   }, [allJobs]);
 
+  const showSkeleton = Boolean(loading && !summary);
+
+  if (showSkeleton) {
+    return (
+      <div className="new-dashboard-wrapper" aria-busy="true" aria-label="Loading dashboard">
+        <style>{`
+          @keyframes cch-dash-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+          .cch-skel {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: cch-dash-shimmer 1.4s ease-in-out infinite;
+            border-radius: 8px;
+          }
+          .cch-skel-circle {
+            border-radius: 50%;
+          }
+          .cch-skel-pill {
+            border-radius: 999px;
+          }
+        `}</style>
+
+        {/* 6 Metric Cards Skeleton */}
+        <div className="modern-kpi-grid">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div className="modern-kpi-card" key={idx}>
+              <div className="modern-kpi-top">
+                <div className="modern-kpi-title-group">
+                  <div className="cch-skel cch-skel-circle" style={{ width: '36px', height: '36px', flexShrink: 0 }} />
+                  <div className="cch-skel" style={{ width: '105px', height: '14px' }} />
+                </div>
+                <div className="cch-skel cch-skel-circle" style={{ width: '18px', height: '18px' }} />
+              </div>
+
+              <div className="cch-skel" style={{ width: '88px', height: '28px', margin: '14px 0' }} />
+
+              <div className="modern-kpi-bottom">
+                <div className="cch-skel cch-skel-pill" style={{ width: '54px', height: '20px' }} />
+                <div className="cch-skel" style={{ width: '115px', height: '12px' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Revenue Trends Chart Skeleton */}
+        <div className="reports-chart-panel">
+          <div className="chart-panel-header">
+            <div className="chart-header-left">
+              <div className="cch-skel" style={{ width: '140px', height: '20px', marginBottom: '8px' }} />
+              <div className="cch-skel" style={{ width: '240px', height: '13px', marginBottom: '14px' }} />
+              <div className="trend-controls-row" style={{ gap: '10px' }}>
+                <div className="cch-skel" style={{ width: '136px', height: '32px' }} />
+                <div className="cch-skel" style={{ width: '112px', height: '32px' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+              <div className="cch-skel" style={{ width: '120px', height: '26px' }} />
+              <div className="cch-skel" style={{ width: '90px', height: '12px' }} />
+            </div>
+          </div>
+
+          <div className="cch-skel" style={{ width: '100%', height: '210px', marginTop: '14px', borderRadius: '12px' }} />
+        </div>
+
+        {/* 3 Active Service Job Cards Skeleton */}
+        <div className="dash-job-cards-section">
+          <div className="section-head-row">
+            <div>
+              <div className="cch-skel" style={{ width: '190px', height: '18px', marginBottom: '6px' }} />
+              <div className="cch-skel" style={{ width: '210px', height: '12px' }} />
+            </div>
+            <div className="cch-skel" style={{ width: '110px', height: '16px' }} />
+          </div>
+
+          <div className="recent-jobs-3cards-grid">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div className="clean-job-card" key={idx} style={{ pointerEvents: 'none' }}>
+                <div className="clean-job-head">
+                  <div className="clean-job-vehicle">
+                    <div className="cch-skel cch-skel-circle" style={{ width: '34px', height: '34px', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div className="cch-skel" style={{ width: '120px', height: '14px' }} />
+                      <div className="cch-skel" style={{ width: '75px', height: '11px' }} />
+                    </div>
+                  </div>
+                  <div className="cch-skel cch-skel-pill" style={{ width: '78px', height: '22px' }} />
+                </div>
+
+                <div className="cch-skel" style={{ width: '85%', height: '14px', margin: '14px 0' }} />
+
+                <div className="clean-job-footer">
+                  <div className="cch-skel" style={{ width: '70px', height: '12px' }} />
+                  <div className="cch-skel" style={{ width: '85px', height: '12px' }} />
+                  <div className="cch-skel" style={{ width: '50px', height: '12px' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="new-dashboard-wrapper">
+    <div className="new-dashboard-wrapper" aria-busy="false">
       {/* 6 Metric Cards in EXACT Image Design */}
       <div className="modern-kpi-grid">
         {modernCards.map((card, idx) => {
