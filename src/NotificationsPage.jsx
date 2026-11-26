@@ -46,6 +46,7 @@ export default function NotificationsPage({
     }
   });
   const messagesEndRef = useRef(null);
+  const threadScrollRef = useRef(null);
   const pollingRef = useRef(false);
   const sendEpochRef = useRef(0);
 
@@ -290,9 +291,12 @@ export default function NotificationsPage({
     return filteredConversations[0] || conversations[0] || null;
   }, [selectedKey, conversations, filteredConversations]);
 
-  // Scroll to bottom and mark active chat as read when opened or when new messages arrive
+  // Scroll thread container directly (avoids mobile viewport horizontal shift from scrollIntoView)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = threadScrollRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
     if (!activeChat) return;
     const isDesktop = typeof window !== 'undefined' ? window.innerWidth > 768 : true;
     if ((isDesktop || mobileChatOpen) && activeChat.incomingCount > 0) {
@@ -863,10 +867,12 @@ export default function NotificationsPage({
 
         .cch-pill-input {
           flex: 1;
+          min-width: 0;
+          width: 100%;
           border: none;
           outline: none;
           background: transparent;
-          font-size: 14px;
+          font-size: 16px;
           color: #1e293b;
           padding: 6px 4px;
           font-family: inherit;
@@ -994,16 +1000,22 @@ export default function NotificationsPage({
            ------------------------------------------------------------- */
         @media (max-width: 768px) {
           .cch-chat-wrapper {
-            width: 100% !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
             margin: 0 !important;
             height: 100dvh !important;
+            max-height: 100dvh !important;
+            overflow-x: hidden !important;
           }
 
           .cch-chat-card {
             grid-template-columns: 1fr !important;
+            width: 100% !important;
+            max-width: 100vw !important;
             height: 100% !important;
             min-height: 0 !important;
             border-radius: 0;
+            overflow-x: hidden !important;
           }
 
           /* When on mobile, toggle between sidebar and chat pane */
@@ -1011,11 +1023,20 @@ export default function NotificationsPage({
             display: ${mobileChatOpen ? 'none' : 'flex'} !important;
             border-right: none;
             width: 100% !important;
+            max-width: 100vw !important;
           }
 
           .cch-chat-pane {
             display: ${mobileChatOpen ? 'flex' : 'none'} !important;
             width: 100% !important;
+            max-width: 100vw !important;
+            min-width: 0 !important;
+            overflow-x: hidden !important;
+          }
+
+          .cch-search-box input,
+          .cch-pill-input {
+            font-size: 16px !important;
           }
 
           .cch-mobile-back {
@@ -1176,7 +1197,7 @@ export default function NotificationsPage({
               </div>
 
               {/* Message Thread */}
-              <div className="cch-thread-scroll">
+              <div className="cch-thread-scroll" ref={threadScrollRef}>
                 <div className="cch-date-separator">
                   <span className="cch-date-label">TODAY</span>
                 </div>

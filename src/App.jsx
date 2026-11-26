@@ -104,15 +104,19 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
 
-  const rows = useMemo(() => {
+  const filteredEntries = useMemo(() => {
+    const rawList = data?.raw || [];
     return (data?.rows || [])
-      .filter((r) => r.join(' ').toLowerCase().includes(query.toLowerCase()))
-      .filter((r) => {
+      .map((row, origIdx) => ({ row, raw: rawList[origIdx] || {}, origIdx }))
+      .filter(({ row }) => row.join(' ').toLowerCase().includes(query.toLowerCase()))
+      .filter(({ row }) => {
         if (filter === 'All' || !data.cols.includes('Status')) return true;
         const statusIdx = data.cols.indexOf('Status');
-        return r[statusIdx] === filter;
+        return row[statusIdx] === filter;
       });
   }, [data, query, filter]);
+
+  const rows = useMemo(() => filteredEntries.map((e) => e.row), [filteredEntries]);
 
   const statusOptions = useMemo(() => {
     if (!data?.cols.includes('Status')) return [];
@@ -196,10 +200,9 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => {
-                const rawItem = data?.raw?.[i] || {};
+              {filteredEntries.map(({ row: r, raw: rawItem, origIdx }) => {
                 return (
-                  <tr key={i}>
+                  <tr key={rawItem.id ?? origIdx}>
                     {r.map((v, j) => {
                       const colName = data.cols[j];
                       if (colName === 'Status') {
@@ -348,7 +351,7 @@ function TablePage({ page, data, loading, onAdd, onView, onRefresh, onUpdateStat
                           <Pencil size={12} /> Edit
                         </button>
                       )}
-                      <button className="text-btn view-details-btn" onClick={() => onView(r, i)}>
+                      <button className="text-btn view-details-btn" onClick={() => onView(r, origIdx)}>
                         View details <ChevronRight size={13} />
                       </button>
                     </td>

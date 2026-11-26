@@ -63,9 +63,7 @@ export default function LoginPage({ onLoginSuccess }) {
           message: 'Welcome back to Car Care Hub! Redirecting to your dashboard...',
           type: 'success'
         });
-        setTimeout(() => {
-          onLoginSuccess({ email: res.email || emailVal, fullName, token: res.token });
-        }, 400);
+        onLoginSuccess({ email: res.email || emailVal, fullName, token: res.token });
       } else {
         const fallbackName = emailVal.split('@')[0];
         localStorage.setItem('cch_auth_token', 'session_active_' + Date.now());
@@ -77,9 +75,7 @@ export default function LoginPage({ onLoginSuccess }) {
           message: 'Welcome back to Car Care Hub! Redirecting to your dashboard...',
           type: 'success'
         });
-        setTimeout(() => {
-          onLoginSuccess({ email: emailVal, fullName: fallbackName });
-        }, 400);
+        onLoginSuccess({ email: emailVal, fullName: fallbackName });
       }
     } catch (err) {
       console.warn('Backend login attempt:', err);
